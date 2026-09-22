@@ -1,4 +1,4 @@
-# Receipts — Deliverables
+# Frictionless — Deliverables
 
 Work breakdown for §5 (team split) and §6 (build plan) of [`specification.md`](./specification.md).
 
@@ -15,10 +15,10 @@ Tier: **must** ships or we have no product · **wow** the demo moment · **polis
 
 | ID | Deliverable | Done when | Tier |
 |---|---|---|---|
-| S1 | Plugin scaffold | `./gradlew runIde` opens a sandbox IDE with a **Receipts** tool window and four toolbar actions stubbed (source picker, Run, Play, Share) | must |
+| S1 | Plugin scaffold | `./gradlew runIde` opens a sandbox IDE with a **Frictionless** tool window and four toolbar actions stubbed (source picker, Run, Play, Share) | must |
 | S2 | **Frozen contracts** | `ChangeSet`, `Source`, `ChangedMethod`, `Verdict`, `Bucket`, `VerdictCounts` compile, are committed, and are agreed out loud. No edits after hour 1 without telling all four tracks | must |
-| S3 | `FakeData` | A hardcoded `ChangeSet` of three methods — one per bucket — that every track develops against | must |
-| S4 | Key + Koog smoke test | A one-shot Koog call returns a completion from the demo machine. **Do this in hour one, not at 2am** | must |
+| S3 | Test fixture | A `ChangeSet` of three methods — one per bucket — in **`src/test` only**, so production code structurally cannot reach it. No toggle, no setting, no silent fallback: if analysis fails the ledger shows the error. Retired at hour 5, when A2 gives real methods with empty verdicts | must |
+| S4 | Key smoke test | `scripts/smoke-openai.sh` returns OK on the demo machine. **Do this in hour one, not at 2am.** Adding the Koog dependency itself belongs to G1, which needs a resolvable version and network | must |
 
 ---
 
