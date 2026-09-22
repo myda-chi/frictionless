@@ -1,5 +1,6 @@
 package com.github.mydachi.frictionless.model
 
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPsiElementPointer
 import java.util.Locale
@@ -40,6 +41,14 @@ data class ChangedMethod(
     val callSites: List<CallSite> = emptyList(),
     val reachingTests: List<TestRef> = emptyList(),
     val pointer: SmartPsiElementPointer<PsiElement>? = null,
+    /**
+     * Resolved once during analysis, off the EDT.
+     *
+     * Looking a path up through the VFS is a *slow operation* and the platform forbids it on the
+     * EDT — wrapping it in a read action does not make it allowed. Analysis already holds this file,
+     * so navigation carries it rather than looking it up again at the worst possible moment.
+     */
+    val virtualFile: VirtualFile? = null,
 )
 
 data class CallSite(

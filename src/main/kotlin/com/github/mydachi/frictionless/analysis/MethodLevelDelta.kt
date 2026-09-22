@@ -88,9 +88,9 @@ object MethodLevelDelta {
         }
 
         return buildList {
-            added.forEach { key -> add(emit(project, MethodChange.ADDED, head.getValue(key), headFile!!, changedFile.path)) }
-            removed.forEach { key -> add(emit(project, MethodChange.REMOVED, base.getValue(key), baseFile!!, changedFile.path)) }
-            modified.forEach { key -> add(emit(project, MethodChange.MODIFIED, head.getValue(key), headFile!!, changedFile.path)) }
+            added.forEach { key -> add(emit(project, MethodChange.ADDED, head.getValue(key), headFile!!, changedFile)) }
+            removed.forEach { key -> add(emit(project, MethodChange.REMOVED, base.getValue(key), baseFile!!, changedFile)) }
+            modified.forEach { key -> add(emit(project, MethodChange.MODIFIED, head.getValue(key), headFile!!, changedFile)) }
         }
     }
 
@@ -99,8 +99,9 @@ object MethodLevelDelta {
         change: MethodChange,
         method: PsiElement,
         psiFile: PsiFile,
-        path: String,
+        changedFile: ChangedFile,
     ): MethodDelta {
+        val path = changedFile.path
         val id = "${change.name.lowercase()}:$path#${signature(method)}"
         val method_: ChangedMethod = ChangedMethod(
             id = id,
@@ -110,6 +111,7 @@ object MethodLevelDelta {
             verdict = emptyVerdict,
             // Call sites and reaching tests are A3/A6. A removed method has nothing in the working
             // tree to navigate to, so it gets no pointer rather than a dangling one.
+            virtualFile = changedFile.file,
             pointer = if (change == MethodChange.REMOVED) {
                 null
             } else {

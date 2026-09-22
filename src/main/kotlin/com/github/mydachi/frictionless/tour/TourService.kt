@@ -13,7 +13,6 @@ import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
@@ -153,10 +152,9 @@ class TourService(private val project: Project) {
      */
     private fun show(method: ChangedMethod) = WriteIntentReadAction.run<RuntimeException> {
         clearDim()
+        // Navigator positions the caret and scrolls; this only needs the line for the spotlight.
         val editor = Navigator.open(project, method) ?: return@run
         val line = (method.line - 1).coerceIn(0, (editor.document.lineCount - 1).coerceAtLeast(0))
-        editor.caretModel.moveToOffset(editor.document.getLineStartOffset(line))
-        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
         spotlight(editor, line)
     }
 
