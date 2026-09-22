@@ -26,7 +26,7 @@ Tier: **must** ships or we have no product · **wow** the demo moment · **polis
 
 | ID | Deliverable | Depends on | Done when | Tier |
 |---|---|---|---|---|
-| A1 | Working-tree change set | S2 | `ChangeListManager` yields changed files for the current checkout | must |
+| A1 | Working-tree change set | S2 | `ChangeListManager` yields the changed files for the current checkout — each with its kind and its base revision — wrapped as a `ChangeSet`. **File level only:** `ChangeSet.methods` stays empty, because which methods changed is A2's deliverable, not A1's | must |
 | A2 | Method-level PSI delta | A1 | Base blob and head parsed as `PsiFile`s, compared at method level, emitting `ChangedMethod`s. Handles added, removed, modified | must |
 | A3 | **Impact graph** | A2 | BFS via `ReferencesSearch` / `OverridingMethodsSearch` up the call graph, stopping at the test source root, populates `reachingTests`. Empty list is a valid, meaningful answer | must |
 | A4 | Bucket assignment | A3 | Every `ChangedMethod` carries a `Verdict`; unverified is decided without running anything | must |
