@@ -103,8 +103,6 @@ class AnalysisService(private val project: Project) {
 
     private fun providerFor(source: ChangeSource): ChangeSetProvider = when (source) {
         is ChangeSource.WorkingTree -> WorkingTreeChangeSetProvider
-        // Branch mode is A5. The picker can already select it, so fail loudly rather than silently
-        // analysing the working tree and labelling it as a branch comparison.
-        is ChangeSource.Branch -> error(MyBundle["analysis.branchNotImplemented"])
+        is ChangeSource.Branch -> BranchChangeSetProvider(source.base, source.head)
     }
 }
