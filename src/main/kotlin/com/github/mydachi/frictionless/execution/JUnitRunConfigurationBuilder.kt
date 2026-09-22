@@ -69,8 +69,12 @@ object JUnitRunConfigurationBuilder {
         return environment
     }
 
-    /** `"ClassName,methodName"` - the exact shape `JUnitConfiguration.bePatternConfiguration` emits. */
-    internal fun pattern(test: TestRef): String = "${test.className},${test.methodName}"
+    /**
+     * `"ClassName,methodName"` - the exact shape `JUnitConfiguration.bePatternConfiguration` emits -
+     * or the bare class name when [TestRef.isWholeClass], which JUnit reads as "every test in it".
+     */
+    internal fun pattern(test: TestRef): String =
+        if (test.isWholeClass) test.className else "${test.className},${test.methodName}"
 
     internal fun configurationName(tests: List<TestRef>): String = when (tests.size) {
         1 -> "Frictionless: ${tests.single().displayName}"

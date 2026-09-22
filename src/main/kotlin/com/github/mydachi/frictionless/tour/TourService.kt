@@ -7,6 +7,7 @@ import com.github.mydachi.frictionless.model.LedgerState
 import com.github.mydachi.frictionless.narration.Identifiers
 import com.github.mydachi.frictionless.narration.NarrationService
 import com.github.mydachi.frictionless.navigation.Navigator
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
@@ -16,6 +17,7 @@ import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.JBColor
 import javax.swing.Timer
 
@@ -37,14 +39,24 @@ class TourService(private val project: Project) {
 
     private var timer: Timer? = null
     private var dim: MutableList<Pair<Editor, RangeHighlighter>> = mutableListOf()
-    private var listeners = mutableListOf<(Stop?) -> Unit>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(Stop?) -> Unit>()
 
     data class Stop(val index: Int, val total: Int, val method: ChangedMethod)
 
     val isRunning: Boolean get() = timer?.isRunning == true
 
-    fun addListener(listener: (Stop?) -> Unit) {
+    /**
+     * Registers [listener] for as long as [parent] lives.
+     *
+     * Taking a [Disposable] rather than offering an unregister call is the platform idiom, and it is
+     * what stops a closed tool window from going on receiving stops for ever: this is a project
+     * service, so it outlives every panel that listens to it (issue #63). Without it, reopening the
+     * tool window a few times meant each dead panel still handled every stop and painted into
+     * disposed components.
+     */
+    fun addListener(parent: Disposable, listener: (Stop?) -> Unit) {
         listeners += listener
+        Disposer.register(parent) { listeners -= listener }
     }
 
     fun start() {

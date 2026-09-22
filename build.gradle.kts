@@ -34,6 +34,11 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-slf4j")
+        // Pulled transitively through Ktor's reactive plumbing rather than by Koog directly, and
+        // flagged by verifyPluginProjectConfiguration. Nothing here uses reactive streams.
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-reactive")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk9")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
     }
 
     testImplementation("junit:junit:4.13.2")
@@ -46,6 +51,8 @@ dependencies {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
         bundledPlugin("Git4Idea")
+        // Kotlin PSI (KtNamedFunction) so the analyser sees Kotlin functions, not only Java methods.
+        bundledPlugin("org.jetbrains.kotlin")
         // E1's run-config builder and the Analysis track's PSI diff both need the bundled Java
         // plugin: JUnitConfiguration, PsiMethod and PsiClass all live there, not in the base
         // platform. JUnit is E1's addition on top. See plugin.xml for the matching <depends>.

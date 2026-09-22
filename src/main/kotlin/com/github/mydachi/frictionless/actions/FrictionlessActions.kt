@@ -1,6 +1,8 @@
 package com.github.mydachi.frictionless.actions
 
 import com.github.mydachi.frictionless.MyBundle
+import com.github.mydachi.frictionless.analysis.AnalysisService
+import com.github.mydachi.frictionless.analysis.BranchChangeSetProvider
 import com.github.mydachi.frictionless.model.ChangeSource
 import com.github.mydachi.frictionless.model.LedgerModel
 import com.github.mydachi.frictionless.model.LedgerState
@@ -16,7 +18,6 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import git4idea.repo.GitRepositoryManager
 import javax.swing.JComponent
 
 /**
@@ -40,7 +41,7 @@ class SourcePickerAction : ComboBoxAction(), DumbAware {
         val project = e.project ?: return
         e.presentation.text = when (val source = project.service<LedgerModel>().source) {
             is ChangeSource.WorkingTree -> MyBundle["source.workingTree"]
-            is ChangeSource.Branch -> MyBundle["source.branch", source.head, source.base]
+            is ChangeSource.Branch -> MyBundle["source.branch", source.base, source.head]
         }
     }
 
@@ -57,28 +58,38 @@ class SelectWorkingTreeAction : AnAction(MyBundle["source.workingTree"]), DumbAw
 }
 
 /**
- * Deliverable U5: a searchable popup over the repository's branches. The last base is remembered,
- * so switching branches repeatedly costs one click.
+ * Deliverable U5: choose what to compare the current branch **against**.
+ *
+ * The picker selects the *base*, not the head. Branch mode compares a base ref to the working tree
+ * (see [BranchChangeSetProvider]), so the head is always whatever is checked out — offering a choice
+ * of head would promise a comparison the analyser cannot honestly make.
  */
 class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val model = project.service<LedgerModel>()
-        val repository = GitRepositoryManager.getInstance(project).repositories.firstOrNull()
-        if (repository == null) {
+
+        val head = BranchChangeSetProvider.currentBranch(project)
+        if (head == null) {
             model.update(LedgerState.Failed(MyBundle["source.noRepository"]))
             return
         }
 
-        val base = model.lastBase ?: defaultBase(repository.branches.localBranches.map { it.name })
-        val branches = repository.branches.localBranches.map { it.name }.sorted()
+        val candidates = BranchChangeSetProvider.localBranches(project).filter { it != head }
+        if (candidates.isEmpty()) {
+            model.update(LedgerState.Failed(MyBundle["source.noOtherBranch"]))
+            return
+        }
+
+        val preferred = model.lastBase ?: BranchChangeSetProvider.defaultBase(project)
+        val ordered = candidates.sortedByDescending { it == preferred }
 
         JBPopupFactory.getInstance()
-            .createPopupChooserBuilder(branches)
-            .setTitle(MyBundle["source.pickBranch.title"])
+            .createPopupChooserBuilder(ordered)
+            .setTitle(MyBundle["source.pickBranch.title", head])
             .setNamerForFiltering { it }
-            .setItemChosenCallback { head ->
+            .setItemChosenCallback { base ->
                 model.lastBase = base
                 model.source = ChangeSource.Branch(base = base, head = head)
             }
@@ -86,17 +97,14 @@ class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
             .showInFocusCenter()
     }
 
-    private fun defaultBase(branches: List<String>): String =
-        branches.firstOrNull { it == "main" } ?: branches.firstOrNull { it == "master" } ?: "main"
-
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 }
 
-/** Run the analysis over the selected change set. Owned by A1–A4 (#15). */
+/** Runs the analysis over the selected change set: A1 → A2 → A3 → A4, then the impacted tests. */
 class RunAnalysisAction : AnAction(MyBundle["action.run"], null, AllIcons.Actions.Execute), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        notYet(project, MyBundle["action.run"], "#15")
+        project.service<AnalysisService>().run()
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT

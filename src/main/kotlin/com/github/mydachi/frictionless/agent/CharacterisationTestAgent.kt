@@ -71,8 +71,8 @@ class CharacterisationTestAgent(
         return Result.GaveUp(MAX_ATTEMPTS, lastFailure)
     }
 
-    /** The whole generated class is the unit of work, so the method name is the class itself. */
-    private fun testRef(test: GeneratedTest) = TestRef(className = test.qualifiedName, methodName = "*")
+    /** The whole generated class is the unit of work: every test the model wrote in it must pass. */
+    private fun testRef(test: GeneratedTest) = TestRef.wholeClass(test.qualifiedName)
 
     /** One short line for the ledger — "Didn't compile. Fixing." reads better than a stack trace. */
     internal fun summarise(failure: String): String = when {

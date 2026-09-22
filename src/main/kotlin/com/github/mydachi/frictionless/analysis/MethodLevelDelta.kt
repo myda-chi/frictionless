@@ -10,14 +10,11 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiManager
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.util.PsiTreeUtil
 
 /**
  * Deliverable A2: the base revision and the working tree, diffed at method level.
@@ -73,7 +70,11 @@ object MethodLevelDelta {
         val headFile = changedFile.file?.let { PsiManager.getInstance(project).findFile(it) }
         // A revision that cannot produce its content leaves the base empty, which reports the file's
         // methods as added — the same shape as a new file. Nothing is invented to fill the gap.
-        val baseFile = changedFile.baseRevision?.content?.let { content ->
+        // getContent() is declared `throws VcsException` and Kotlin does not enforce that, so a
+        // shallow clone or an unreachable object would otherwise abort the whole change set rather
+        // than this one file (issue #66). An unreadable base is an empty base, which reports the
+        // file's methods as added — the behaviour documented above.
+        val baseFile = runCatching { changedFile.baseRevision?.content }.getOrNull()?.let { content ->
             psiFileFor(project, fileNameOf(changedFile), content, changedFile.file?.fileType)
         }
 
@@ -96,7 +97,7 @@ object MethodLevelDelta {
     private fun emit(
         project: Project,
         change: MethodChange,
-        method: PsiMethod,
+        method: PsiElement,
         psiFile: PsiFile,
         path: String,
     ): MethodDelta {
@@ -118,20 +119,22 @@ object MethodLevelDelta {
         return MethodDelta(change, method_)
     }
 
+    /** `Owner.method(paramTypes)` — see [Methods.signature] for why the owner is part of the key. */
+    internal fun signature(method: PsiElement): String = Methods.signature(method)
+
     /**
-     * `Class.method(paramTypes)`. Parameter types, not names: renaming a parameter is not a change to
-     * the method's signature, and overloading is.
+     * Declarations by signature, in both languages.
+     *
+     * A duplicate key would silently drop a method, so the first declaration wins and later ones are
+     * ignored rather than overwriting it — with the owner in the key (issue #58) a genuine collision
+     * now means two identical signatures in one file, which the compiler would already reject.
      */
-    internal fun signature(method: PsiMethod): String =
-        "${method.name}(${method.parameterList.parameters.joinToString(", ") { it.type.canonicalText }})"
+    internal fun methodsOf(psiFile: PsiFile): Map<String, PsiElement> =
+        Methods.declarationsIn(psiFile).fold(LinkedHashMap()) { acc, declaration ->
+            acc.apply { putIfAbsent(signature(declaration), declaration) }
+        }
 
-    internal fun methodsOf(psiFile: PsiFile): Map<String, PsiMethod> =
-        PsiTreeUtil.findChildrenOfType(psiFile, PsiMethod::class.java).associateBy { signature(it) }
-
-    internal fun displayName(method: PsiMethod): String {
-        val owner = PsiTreeUtil.getParentOfType(method, PsiClass::class.java)?.name
-        return if (owner.isNullOrEmpty()) "${method.name}()" else "$owner.${method.name}()"
-    }
+    internal fun displayName(method: PsiElement): String = Methods.displayName(method)
 
     /**
      * 1-based line of [element], counted off the file's own text.

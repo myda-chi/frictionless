@@ -2,6 +2,7 @@ package com.github.mydachi.frictionless.model
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPsiElementPointer
+import java.util.Locale
 
 /**
  * Frozen shared contracts (deliverable S2). Every track builds against these types and nothing else.
@@ -51,11 +52,28 @@ data class CallSite(
 /** A test that reaches a changed method. Class and method names are what the JUnit runner needs. */
 data class TestRef(
     val className: String,
+    /** Empty means the whole class — see [wholeClass]. */
     val methodName: String,
     val outcome: TestOutcome = TestOutcome.NOT_RUN,
     val pointer: SmartPsiElementPointer<PsiElement>? = null,
 ) {
-    val displayName: String get() = "$className.$methodName"
+    val displayName: String get() = if (methodName.isEmpty()) className else "$className.$methodName"
+
+    /** Whether this names a whole class rather than one method inside it. */
+    val isWholeClass: Boolean get() = methodName.isEmpty()
+
+    companion object {
+        /**
+         * Every test in a class.
+         *
+         * The agent generates a test *class* and has no method name to give until the model has
+         * written one, so it needs a way to say "run all of it". It used to say `methodName = "*"`,
+         * which JUnit cannot run — the pattern `Class,*` is neither a class nor a class-and-method
+         * (issue #57). An empty method name is the honest representation, and the run-configuration
+         * builder renders it as the bare class name.
+         */
+        fun wholeClass(className: String) = TestRef(className = className, methodName = "")
+    }
 }
 
 enum class TestOutcome { NOT_RUN, PASSED, FAILED, ERROR }
@@ -106,7 +124,7 @@ data class Verdict(
         Bucket.UNVERIFIED -> "Nothing tests this."
     }
 
-    private fun seconds(): String = "%.1fs".format(counts.durationMs / 1000.0)
+    private fun seconds(): String = String.format(Locale.ROOT, "%.1fs", counts.durationMs / 1000.0)
 
     private fun tests(n: Int) = if (n == 1) "test" else "tests"
 
