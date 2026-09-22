@@ -6,9 +6,9 @@ import com.github.mydachi.frictionless.model.ChangeSource
 import com.github.mydachi.frictionless.model.ChangedMethod
 import com.github.mydachi.frictionless.model.Verdict
 import com.github.mydachi.frictionless.model.VerdictCounts
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.FileTypeManager
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -52,7 +52,7 @@ object MethodLevelDelta {
      * that onto every caller is how you get a `ReadAccessException` on stage.
      */
     fun delta(project: Project, changedFile: ChangedFile): List<MethodDelta> =
-        ReadAction.compute<List<MethodDelta>, RuntimeException> {
+        DumbService.getInstance(project).runReadActionInSmartMode<List<MethodDelta>> {
             compare(project, changedFile)
         }
 

@@ -98,8 +98,13 @@ class VerdictMarkup(private val project: Project) {
         methods.forEach { paint(editor, it) }
 
     private fun paint(editor: Editor, method: ChangedMethod) {
-        val file = Navigator.resolve(project, method.filePath) ?: return
-        if (editor.virtualFile != file) return
+        // Deliberately does NOT resolve the path through the VFS. `LocalFileSystem.findFileByPath`
+        // is a slow operation and this runs on the EDT on every ledger update, which the platform
+        // reports as "Slow operations are prohibited on EDT" and blames the plugin for. The editor
+        // already knows its own file, so the question "is this method in this editor?" is a string
+        // comparison, not a lookup.
+        val file = editor.virtualFile ?: return
+        if (!Navigator.samePath(project, file, method.filePath)) return
 
         val marks = painted.getOrPut(editor) { Marks(file) }
         // `fileOpened` also reports a file that is already open in another split, so drawing happens
