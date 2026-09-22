@@ -21,4 +21,24 @@ class ShareCodeWithMeSessionTest : TestCase() {
         assertFalse(looksLikeCopyLinkAction("CodeWithMe.Copy", "Copy Something Unrelated"))
         assertFalse(looksLikeCopyLinkAction("CodeWithMe.OpenLink", "Open Link"))
     }
+
+    fun testLinkIfChangedAcceptsANewLinkThatWasNotThereBefore() {
+        assertEquals(
+            "https://code-with-me.jetbrains.com/abc123",
+            linkIfChanged(before = null, after = "https://code-with-me.jetbrains.com/abc123"),
+        )
+    }
+
+    fun testLinkIfChangedRejectsAnUnchangedClipboardEvenIfItLooksLikeALink() {
+        val staleLink = "https://stackoverflow.com/questions/some-old-thing"
+        assertNull(linkIfChanged(before = staleLink, after = staleLink))
+    }
+
+    fun testLinkIfChangedRejectsANonUrlEvenIfItChanged() {
+        assertNull(linkIfChanged(before = "old text", after = "not a url"))
+    }
+
+    fun testLinkIfChangedRejectsWhenClipboardEndsUpEmpty() {
+        assertNull(linkIfChanged(before = "https://example.com/old", after = null))
+    }
 }

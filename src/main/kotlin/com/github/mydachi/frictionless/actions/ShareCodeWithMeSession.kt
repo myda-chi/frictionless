@@ -51,9 +51,11 @@ fun shareCodeWithMeSession(project: Project, e: AnActionEvent) {
         notify(project, MyBundle["action.share.noCopyAction"], NotificationType.WARNING)
         return
     }
+    val clipboardBefore = readClipboardText()
     performAction(actionManager.getAction(copyLinkId), e)
+    val clipboardAfter = readClipboardText()
 
-    val link = readClipboardLink()
+    val link = linkIfChanged(clipboardBefore, clipboardAfter)
     val message = if (link != null) {
         MyBundle["action.share.startedWithLink", link]
     } else {
@@ -73,11 +75,10 @@ private fun isCodeWithMeEnabled(): Boolean {
     return plugin.isEnabled
 }
 
-private fun readClipboardLink(): String? {
+private fun readClipboardText(): String? {
     val contents = CopyPasteManager.getInstance().contents ?: return null
     if (!contents.isDataFlavorSupported(DataFlavor.stringFlavor)) return null
-    val text = contents.getTransferData(DataFlavor.stringFlavor) as? String ?: return null
-    return text.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    return (contents.getTransferData(DataFlavor.stringFlavor) as? String)?.trim()
 }
 
 private fun notify(project: Project, message: String, type: NotificationType) {
@@ -85,6 +86,16 @@ private fun notify(project: Project, message: String, type: NotificationType) {
         .getNotificationGroup(NOTIFICATION_GROUP_ID)
         .createNotification(message, type)
         .notify(project)
+}
+
+/**
+ * The clipboard after the copy action is only trustworthy if the copy actually changed it - a
+ * no-op copy (wrong action matched, session not started, the action moved in a newer Code With Me
+ * version) otherwise reports whatever the user happened to have copied earlier, silently.
+ */
+internal fun linkIfChanged(before: String?, after: String?): String? {
+    if (after == null || after == before) return null
+    return after.takeIf { it.startsWith("http://") || it.startsWith("https://") }
 }
 
 internal fun codeWithMeActionCandidates(actionManager: ActionManager): Map<String, String?> =
