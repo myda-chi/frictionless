@@ -19,3 +19,7 @@
 - A6 — blast radius: `BlastRadiusResolver` resolves what a changed method calls and the live entry
   points it is reachable under (`main`, an action handler, an HTTP handler, a test), so the detail
   panel can show what a mistake in it would cost. Entry points are heuristic and documented as such.
+### Fixed
+- U4 — editor marks now reach every open editor, not just the focused one (#60). The selection
+  collapsed to the selected editor, so a split view or a second tab showed an unmarked file during the
+  tour. Files opened after a verdict lands are marked too, instead of waiting for the next Run.
