@@ -14,6 +14,7 @@ import java.awt.event.MouseEvent
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
 /**
@@ -45,6 +46,18 @@ class LedgerTree(private val onActivate: (ChangedMethod) -> Unit) : Tree(Default
 
     fun selected(): ChangedMethod? =
         (lastSelectedPathComponent as? DefaultMutableTreeNode)?.userObject as? ChangedMethod
+
+    /** Move the selection to [method]'s row, scrolling it into view. Used by the Autopilot tour. */
+    fun select(method: ChangedMethod) {
+        val root = model.root as? DefaultMutableTreeNode ?: return
+        val node = root.depthFirstEnumeration().asSequence()
+            .filterIsInstance<DefaultMutableTreeNode>()
+            .firstOrNull { (it.userObject as? ChangedMethod)?.id == method.id }
+            ?: return
+        val path = TreePath(node.path)
+        selectionPath = path
+        scrollPathToVisible(path)
+    }
 
     fun show(changeSet: ChangeSet) {
         val root = DefaultMutableTreeNode()

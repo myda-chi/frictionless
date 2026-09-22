@@ -13,7 +13,6 @@ import com.intellij.openapi.editor.EditorCustomElementRenderer
 import com.intellij.openapi.editor.Inlay
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.markup.HighlighterLayer
-import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
@@ -143,7 +142,4 @@ class VerdictMarkup(private val project: Project) {
         }
     }
 
-    companion object {
-        val DIM_AREA: HighlighterTargetArea = HighlighterTargetArea.EXACT_RANGE
-    }
 }

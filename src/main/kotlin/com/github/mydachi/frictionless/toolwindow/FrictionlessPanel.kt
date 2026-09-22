@@ -70,10 +70,13 @@ class FrictionlessPanel(private val project: Project, parent: Disposable) : Simp
         tree.addTreeSelectionListener { blastRadius.show(tree.selected()) }
 
         model.addListener(listener)
-        project.service<TourService>().addListener { stop ->
+        // The ledger row follows the tour: as the editor moves to a stop, its row highlights, so the
+        // panel and the editor tell the same story on a projector. The call here used to be
+        // `tree.selected()`, which read the selection and discarded it (issue #64).
+        project.service<TourService>().addListener(parent) { stop ->
             ApplicationManager.getApplication().invokeLater {
                 stop?.method?.let { method ->
-                    tree.selected()
+                    tree.select(method)
                     blastRadius.show(method)
                 }
             }
