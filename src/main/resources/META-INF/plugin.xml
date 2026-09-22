@@ -19,6 +19,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Frictionless" anchor="right"
                     factoryClass="com.github.mydachi.frictionless.toolwindow.FrictionlessToolWindowFactory"/>
+        <notificationGroup id="Frictionless" displayType="BALLOON"/>
     </extensions>
 
     <actions>
