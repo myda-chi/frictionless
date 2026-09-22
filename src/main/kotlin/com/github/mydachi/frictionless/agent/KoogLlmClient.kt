@@ -26,8 +26,22 @@ class KoogLlmClient(
         MultiLLMPromptExecutor(listOf(OpenAILLMClient(requireNotNull(apiKey))))
     }
 
+    /**
+     * Runs with this plugin's classloader as the thread's context classloader.
+     *
+     * Koog finds its HTTP client through `ServiceLoader`, which looks in the **context** classloader.
+     * Inside a plugin that is the IDE's, not ours, so the provider that `http-client-ktor` publishes
+     * in `META-INF/services` is invisible and Koog fails with "No KoogHttpClient.Factory provider
+     * found on the runtime classpath" — while the same call works perfectly in a plain JVM, which is
+     * what makes it so confusing to chase.
+     *
+     * The jar is on the classpath either way; only the lookup was looking in the wrong place.
+     */
     override fun complete(systemPrompt: String, userPrompt: String): String {
         require(isConfigured) { "$API_KEY_ENV is not set" }
+        val thread = Thread.currentThread()
+        val previous = thread.contextClassLoader
+        thread.contextClassLoader = KoogLlmClient::class.java.classLoader
         return try {
             runBlocking {
                 executor.execute(
@@ -41,6 +55,8 @@ class KoogLlmClient(
         } catch (e: Exception) {
             thisLogger().warn("Koog call failed", e)
             throw e
+        } finally {
+            thread.contextClassLoader = previous
         }
     }
 
