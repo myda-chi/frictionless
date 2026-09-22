@@ -1,10 +1,13 @@
 package com.github.mydachi.frictionless.toolwindow
 
 import com.github.mydachi.frictionless.MyBundle
+import com.github.mydachi.frictionless.agent.PinBehaviourService
+import com.github.mydachi.frictionless.model.Bucket
 import com.github.mydachi.frictionless.analysis.BlastRadius
 import com.github.mydachi.frictionless.model.ChangedMethod
 import com.github.mydachi.frictionless.model.TestOutcome
 import com.github.mydachi.frictionless.navigation.Navigator
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
@@ -14,6 +17,7 @@ import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import javax.swing.BoxLayout
+import javax.swing.JButton
 
 /**
  * Deliverable U3, detail half: what this method costs if it is wrong.
@@ -41,6 +45,17 @@ class BlastRadiusPanel(private val project: Project) : JBPanel<BlastRadiusPanel>
         } else {
             body.add(heading(method.displayName))
             body.add(hint(method.verdict.display()))
+
+            // The one action the ledger offers, and only where it means anything: a method nothing
+            // reaches is the only one with behaviour left to pin.
+            if (method.verdict.bucket == Bucket.UNVERIFIED) {
+                body.add(
+                    JButton(MyBundle["pin.action"]).apply {
+                        alignmentX = LEFT_ALIGNMENT
+                        addActionListener { project.service<PinBehaviourService>().pin(method) }
+                    },
+                )
+            }
 
             body.add(heading(MyBundle["blast.callSites", method.callSites.size]))
             if (method.callSites.isEmpty()) body.add(hint(MyBundle["blast.callSites.none"]))
