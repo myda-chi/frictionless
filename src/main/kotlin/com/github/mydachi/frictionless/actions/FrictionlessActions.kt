@@ -52,7 +52,6 @@ class SelectWorkingTreeAction : AnAction(MyBundle["source.workingTree"]), DumbAw
 
 class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
         JBPopupFactory.getInstance()
             .createMessage(MyBundle["action.notImplemented", MyBundle["source.pickBranch"], "#29"])
             .showInFocusCenter()
