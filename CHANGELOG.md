@@ -16,3 +16,6 @@
   `ReferencesSearch`, dispatch-aware through super methods, stopping at test methods in the test source
   root, and fills in `reachingTests` and `callSites`. An empty list means nothing in the repo executes
   that method, which is the answer the ledger exists to show.
+- A6 — blast radius: `BlastRadiusResolver` resolves what a changed method calls and the live entry
+  points it is reachable under (`main`, an action handler, an HTTP handler, a test), so the detail
+  panel can show what a mistake in it would cost. Entry points are heuristic and documented as such.
