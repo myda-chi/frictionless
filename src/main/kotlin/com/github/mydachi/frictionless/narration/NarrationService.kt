@@ -6,6 +6,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Deliverable U7: speak a verdict line, if this machine can.
@@ -36,6 +37,15 @@ class NarrationService(@Suppress("unused") private val project: Project) {
     @Volatile
     private var current: Process? = null
 
+    /**
+     * Bumped by [stop]. A queued utterance checks this against the generation it was submitted
+     * under and drops itself if [stop] has since moved on - otherwise a Stop only kills the
+     * utterance speaking *right now*, and everything already queued still fires afterwards
+     * (issue #61), which is exactly the "narration talks over the presenter" risk specification.md
+     * §8.1 calls out.
+     */
+    private val generation = AtomicInteger(0)
+
     val provider: String? by lazy {
         providers.firstOrNull { PathEnvironmentVariableUtil.findInPath(it.binary) != null }?.binary
     }
@@ -45,7 +55,9 @@ class NarrationService(@Suppress("unused") private val project: Project) {
     /** Queued so two lines never overlap. Returns immediately. */
     fun say(text: String) {
         val chosen = providers.firstOrNull { it.binary == provider } ?: return
+        val submittedGeneration = generation.get()
         queue.submit {
+            if (generation.get() != submittedGeneration) return@submit
             try {
                 val command = GeneralCommandLine(chosen.binary).withParameters(chosen.args(text))
                 val process = command.createProcess()
@@ -62,8 +74,12 @@ class NarrationService(@Suppress("unused") private val project: Project) {
         }
     }
 
-    /** Called when the tour is cancelled, so nothing talks over the presenter afterwards. */
+    /**
+     * Called when the tour is cancelled, so nothing talks over the presenter afterwards: kills
+     * whatever is speaking right now, and drops everything still queued behind it.
+     */
     fun stop() {
+        generation.incrementAndGet()
         current?.destroyForcibly()
         current = null
     }
