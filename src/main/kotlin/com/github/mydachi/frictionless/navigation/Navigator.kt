@@ -19,28 +19,33 @@ import java.nio.file.Paths
  */
 object Navigator {
 
-    fun open(project: Project, method: ChangedMethod): Editor? {
-        method.pointer?.element?.let { element ->
-            val file = element.containingFile?.virtualFile
-            if (file != null) return open(project, file, method.line)
-        }
-        return resolve(project, method.filePath)?.let { open(project, it, method.line) }
+    /**
+     * Resolving a [com.intellij.psi.SmartPsiElementPointer] and asking an element for its file are
+     * both PSI reads, and they happen *before* any editor is opened — so the whole entry point is
+     * wrapped, not merely the editor call inside it. Wrapping only the inner call is what left the
+     * tour dying on `SmartPsiElementPointerImpl.getElement`.
+     */
+    fun open(project: Project, method: ChangedMethod): Editor? = WriteIntentReadAction.compute<Editor?> {
+        val fromPointer = method.pointer?.element?.containingFile?.virtualFile
+        val file = fromPointer ?: resolve(project, method.filePath)
+        file?.let { openIn(project, it, method.line) }
     }
 
-    fun open(project: Project, callSite: CallSite): Editor? =
-        resolve(project, callSite.filePath)?.let { open(project, it, callSite.line) }
+    fun open(project: Project, callSite: CallSite): Editor? = WriteIntentReadAction.compute<Editor?> {
+        resolve(project, callSite.filePath)?.let { openIn(project, it, callSite.line) }
+    }
 
     /**
      * Opening an editor moves the caret, and the caret model asserts read access — which the EDT no
-     * longer grants implicitly. Without this the Autopilot tour dies on its first stop with "Read
-     * access is allowed from inside read-action only", which is what made the tour speak one line
-     * and then stop.
+     * longer grants implicitly.
      */
     fun open(project: Project, file: VirtualFile, line: Int): Editor? =
-        WriteIntentReadAction.compute<Editor?> {
-            FileEditorManager.getInstance(project)
-                .openTextEditor(OpenFileDescriptor(project, file, (line - 1).coerceAtLeast(0), 0), true)
-        }
+        WriteIntentReadAction.compute<Editor?> { openIn(project, file, line) }
+
+    /** Caller already holds the read action. */
+    private fun openIn(project: Project, file: VirtualFile, line: Int): Editor? =
+        FileEditorManager.getInstance(project)
+            .openTextEditor(OpenFileDescriptor(project, file, (line - 1).coerceAtLeast(0), 0), true)
 
     /**
      * Whether [file] is the file [path] names, without touching the VFS.

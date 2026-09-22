@@ -7,6 +7,7 @@ import com.github.mydachi.frictionless.model.LedgerState
 import com.github.mydachi.frictionless.navigation.Navigator
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorCustomElementRenderer
@@ -51,9 +52,12 @@ class VerdictMarkup(private val project: Project) {
             FileEditorManagerListener.FILE_EDITOR_MANAGER,
             object : FileEditorManagerListener {
                 override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
-                    val ready = readyState() ?: return
-                    source.getEditors(file).filterIsInstance<TextEditor>()
-                        .forEach { paintAll(it.editor, ready.changeSet.methods) }
+                    // Same read action as [refresh]: this fires on the EDT and paints the same way.
+                    WriteIntentReadAction.run<RuntimeException> {
+                        val ready = readyState() ?: return@run
+                        source.getEditors(file).filterIsInstance<TextEditor>()
+                            .forEach { paintAll(it.editor, ready.changeSet.methods) }
+                    }
                 }
 
                 override fun fileClosed(source: FileEditorManager, file: VirtualFile) {
@@ -66,9 +70,14 @@ class VerdictMarkup(private val project: Project) {
         )
     }
 
-    fun refresh() {
+    /**
+     * One read action around the whole repaint. Document offsets, the markup model and the inlay
+     * model are all model reads, and the EDT does not grant read access implicitly — the same class
+     * of bug that killed the tour, just waiting on a different code path.
+     */
+    fun refresh() = WriteIntentReadAction.run<RuntimeException> {
         clear()
-        val ready = readyState() ?: return
+        val ready = readyState() ?: return@run
         openEditors().forEach { paintAll(it, ready.changeSet.methods) }
     }
 

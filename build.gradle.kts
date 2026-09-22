@@ -61,3 +61,23 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
     }
 }
+
+/**
+ * Forward the OpenAI key into the sandbox IDE.
+ *
+ * Without this the sandbox inherits the *Gradle daemon's* environment, not your shell's — and the
+ * daemon is long-lived, so a key exported after the daemon started never reaches the plugin and
+ * "Pin behaviour" silently falls back to the disabled template. Reading it through a provider here
+ * is evaluated per build, so exporting and re-running is enough.
+ *
+ * Either works:
+ *   export OPENAI_API_KEY=sk-...        # shell
+ *   openaiApiKey=sk-...                 # ~/.gradle/gradle.properties (never this repo's)
+ */
+tasks.withType<org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask>().configureEach {
+    val apiKey = providers.environmentVariable("OPENAI_API_KEY")
+        .orElse(providers.gradleProperty("openaiApiKey"))
+    if (apiKey.isPresent) {
+        environment("OPENAI_API_KEY", apiKey.get())
+    }
+}

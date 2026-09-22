@@ -23,6 +23,23 @@ the platform runner is both the path we exercise and the fast one.
 
 `.idea/gradle.xml` in this repo carries that setting, so opening the project in the sandbox is enough.
 
+**Give the plugin the OpenAI key.** Either one works; the file is the reliable one on a shared or
+borrowed machine.
+
+```bash
+# Option A - a file, read when it is needed. Survives daemons, restarts and new shells.
+mkdir -p ~/.frictionless && printf 'sk-...' > ~/.frictionless/openai-key
+
+# Option B - the environment. Stop the daemon first, or the sandbox inherits the old one.
+export OPENAI_API_KEY=sk-...
+./gradlew --stop
+```
+
+The key is never committed: the file lives outside the repository and the environment is per-shell.
+Without a key, Pin behaviour still writes a **disabled** placeholder test rather than failing — which
+cannot report the method as proven, so the ledger stays honest. Verify with
+`./scripts/smoke-openai.sh` before demo day (issue #14).
+
 **Open the sandbox on this repository.** `./gradlew runIde`, then open `frictionless` itself as the
 project. The Frictionless tool window is on the right.
 

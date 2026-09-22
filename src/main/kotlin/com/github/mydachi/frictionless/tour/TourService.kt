@@ -9,6 +9,7 @@ import com.github.mydachi.frictionless.narration.NarrationService
 import com.github.mydachi.frictionless.navigation.Navigator
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.editor.Editor
@@ -111,9 +112,14 @@ class TourService(private val project: Project) {
             .take(5)
     }
 
-    private fun show(method: ChangedMethod) {
+    /**
+     * One read action around the whole stop. Opening the file, moving the caret, scrolling and
+     * painting the spotlight are all model reads, and the EDT does not grant read access implicitly
+     * — doing them piecemeal is what made the tour die two stops in.
+     */
+    private fun show(method: ChangedMethod) = WriteIntentReadAction.run<RuntimeException> {
         clearDim()
-        val editor = Navigator.open(project, method) ?: return
+        val editor = Navigator.open(project, method) ?: return@run
         val line = (method.line - 1).coerceIn(0, (editor.document.lineCount - 1).coerceAtLeast(0))
         editor.caretModel.moveToOffset(editor.document.getLineStartOffset(line))
         editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
