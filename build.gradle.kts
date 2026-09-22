@@ -33,5 +33,10 @@ dependencies {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
         testFramework(TestFrameworkType.Platform)
+
+        // E1 builds and launches a JUnitConfiguration, which lives in the bundled Java and JUnit
+        // plugins rather than the base platform - see plugin.xml for the matching runtime <depends>.
+        bundledPlugin("com.intellij.java")
+        bundledPlugin("JUnit")
     }
 }
