@@ -9,10 +9,7 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiReference
 import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.search.searches.ReferencesSearch
 
 /**
  * Deliverable A3: the impact graph — which tests genuinely reach each changed method.
@@ -38,6 +35,9 @@ import com.intellij.psi.search.searches.ReferencesSearch
  *     are deliberately **not** included: a call to an override does not execute the base method, and
  *     counting it would report "covered" for code nothing runs — the one error this tool must never
  *     make.
+ *
+ * "Method" here means a Java `PsiMethod` or a Kotlin `KtNamedFunction`, via [Methods] — the plugin is
+ * written in Kotlin, so a Java-only analyser could not run on itself.
  */
 object ImpactGraph {
 
@@ -80,11 +80,11 @@ object ImpactGraph {
     /** Who calls this method directly — the blast radius a developer would want to see. */
     private fun callSitesOf(project: Project, method: PsiElement): List<CallSite> {
         val sites = LinkedHashMap<String, CallSite>()
-        for (reference in referencesTo(project, method)) {
+        for (reference in CallGraph.callersOf(project, method)) {
             val element = reference.element
-            val caller = enclosingMethod(element)
+            val caller = Methods.enclosing(element)
             val line = MethodLevelDelta.lineOf(element.containingFile, element)
-            val path = displayPath(element)
+            val path = CallGraph.pathOf(element)
             val key = "$path:$line"
             sites.getOrPut(key) {
                 CallSite(
@@ -112,8 +112,8 @@ object ImpactGraph {
             // A) would otherwise loop forever.
             if (!visited.add(current)) continue
 
-            for (reference in referencesTo(project, current)) {
-                val caller = enclosingMethod(reference.element) ?: continue
+            for (reference in CallGraph.callersOf(project, current)) {
+                val caller = Methods.enclosing(reference.element) ?: continue
                 if (isReachingTest(project, caller)) {
                     val test = testRef(project, caller)
                     found.putIfAbsent(test.displayName, test)
@@ -126,15 +126,9 @@ object ImpactGraph {
     }
 
     /**
-     * References to the method **and to what it overrides** — see the dispatch note on [ImpactGraph].
+     * A runnable test method in a test source root — the root is the gate the specification names, the
+     * entry-point check is what separates a real test from a helper living under `src/test`.
      */
-    private fun referencesTo(project: Project, method: PsiElement): List<PsiReference> {
-        val scope = GlobalSearchScope.projectScope(project)
-        return Methods.searchTargets(method)
-            .flatMap { ReferencesSearch.search(it, scope, false).findAll() }
-            .distinct()
-    }
-
     private fun isReachingTest(project: Project, method: PsiElement): Boolean {
         val file = method.containingFile?.virtualFile ?: return false
         val inTestRoot = ProjectFileIndex.getInstance(project)
@@ -147,11 +141,4 @@ object ImpactGraph {
         methodName = Methods.nameOf(method),
         pointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(method),
     )
-
-    private fun enclosingMethod(element: PsiElement): PsiElement? = Methods.enclosing(element)
-
-    private fun displayPath(element: PsiElement): String =
-        element.containingFile.virtualFile?.path ?: element.containingFile.name
-
-
 }
