@@ -2,6 +2,7 @@ package com.github.mydachi.frictionless.model
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPsiElementPointer
+import java.util.Locale
 
 /**
  * Frozen shared contracts (deliverable S2). Every track builds against these types and nothing else.
@@ -123,7 +124,7 @@ data class Verdict(
         Bucket.UNVERIFIED -> "Nothing tests this."
     }
 
-    private fun seconds(): String = "%.1fs".format(counts.durationMs / 1000.0)
+    private fun seconds(): String = String.format(Locale.ROOT, "%.1fs", counts.durationMs / 1000.0)
 
     private fun tests(n: Int) = if (n == 1) "test" else "tests"
 
