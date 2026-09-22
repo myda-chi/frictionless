@@ -76,7 +76,12 @@ data class TestRef(
     }
 }
 
-enum class TestOutcome { NOT_RUN, PASSED, FAILED, ERROR }
+/**
+ * [SKIPPED] is not a pass and not a failure. An `@Ignore`d or `assumeTrue`-skipped test executed
+ * nothing, so a method whose only reaching test skipped stays Unverified (issue #55) — reporting it
+ * as Proven is the one thing this product must never do.
+ */
+enum class TestOutcome { NOT_RUN, PASSED, FAILED, ERROR, SKIPPED }
 
 enum class Bucket {
     /** Covered by tests that reach it, and those tests pass. */

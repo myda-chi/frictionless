@@ -5,7 +5,6 @@ import com.github.mydachi.frictionless.model.TestRef
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
 import com.intellij.execution.testframework.sm.runner.SMTestProxy
-import com.intellij.execution.testframework.sm.runner.states.TestStateInfo
 import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
@@ -96,17 +95,23 @@ internal fun testRefFromLocationUrl(locationUrl: String?): TestRef? {
 }
 
 /**
- * SKIPPED/COMPLETE collapse into [TestOutcome.PASSED] the same way [SMTestProxy.isPassed] treats
- * them. Anything that is not an unambiguous pass or assertion failure - ignored, terminated, an
- * exception, an unrecognised future magnitude - is [TestOutcome.ERROR]: this never reports
- * [TestOutcome.PASSED] on a guess.
+ * What a finished test actually reported, from [SMTestProxy]'s own public predicates.
+ *
+ * This used to read `TestStateInfo.Magnitude`, which is marked `@ApiStatus.Internal` — the plugin
+ * verifier fails on it, and an internal enum can change shape between releases.
+ *
+ * **A skipped test is not a pass.** It used to collapse into [TestOutcome.PASSED] alongside the real
+ * ones, which meant an `@Ignore`d test could carry a method all the way to Proven — exactly the
+ * false green issue #55 is about. It now reports [TestOutcome.SKIPPED], which counts as neither a
+ * pass nor a failure, so the method stays Unverified.
+ *
+ * Order matters: ignored is checked before passed, because the platform treats a skipped test as
+ * not-failed and would otherwise answer "passed" for something that never ran.
  */
-internal fun testOutcomeFromMagnitude(magnitude: TestStateInfo.Magnitude): TestOutcome = when (magnitude) {
-    TestStateInfo.Magnitude.PASSED_INDEX,
-    TestStateInfo.Magnitude.COMPLETE_INDEX,
-    TestStateInfo.Magnitude.SKIPPED_INDEX,
-    -> TestOutcome.PASSED
-    TestStateInfo.Magnitude.FAILED_INDEX -> TestOutcome.FAILED
+internal fun testOutcomeOf(test: SMTestProxy): TestOutcome = when {
+    test.isIgnored -> TestOutcome.SKIPPED
+    test.isPassed -> TestOutcome.PASSED
+    test.isDefect -> TestOutcome.FAILED
     else -> TestOutcome.ERROR
 }
 
@@ -114,7 +119,7 @@ internal fun toTestResult(test: SMTestProxy): TestResult {
     val ref = testRefFromLocationUrl(test.locationUrl) ?: TestRef(className = "", methodName = test.name)
     return TestResult(
         test = ref,
-        outcome = testOutcomeFromMagnitude(test.magnitudeInfo),
+        outcome = testOutcomeOf(test),
         output = test.stacktrace ?: test.errorMessage.orEmpty(),
         durationMs = test.duration ?: 0,
     )
