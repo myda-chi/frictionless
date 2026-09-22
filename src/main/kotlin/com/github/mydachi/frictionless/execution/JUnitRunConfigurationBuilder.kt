@@ -9,6 +9,7 @@ import com.intellij.execution.junit.JUnitConfiguration
 import com.intellij.execution.junit.JUnitConfigurationType
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.testframework.TestSearchScope
 import com.intellij.openapi.project.Project
 
@@ -50,11 +51,20 @@ object JUnitRunConfigurationBuilder {
 
     /**
      * Starts [settings] running. Returns the [ExecutionEnvironment] immediately - this does not wait
-     * for the run to finish; E2 attaches an `SMTRunnerEventsListener` to observe it as it goes.
+     * for the run to finish.
+     *
+     * [callback] is set on the environment *before* the run is started, so it can capture the run's
+     * console as soon as it exists - [TestResultCollector] (E2) uses this to attach its listener
+     * before any test event can fire, rather than racing the run to do so afterwards.
      */
-    fun launch(project: Project, settings: RunnerAndConfigurationSettings): ExecutionEnvironment {
+    fun launch(
+        project: Project,
+        settings: RunnerAndConfigurationSettings,
+        callback: ProgramRunner.Callback? = null,
+    ): ExecutionEnvironment {
         val executor = DefaultRunExecutor.getRunExecutorInstance()
         val environment = ExecutionEnvironmentBuilder.create(executor, settings).build()
+        environment.callback = callback
         ExecutionManager.getInstance(project).restartRunProfile(environment)
         return environment
     }
