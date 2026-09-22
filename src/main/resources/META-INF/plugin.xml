@@ -3,6 +3,8 @@
     <id>com.github.mydachi.frictionless</id>
     <name>frictionless</name>
     <vendor>myda-chi</vendor>
+
+    <idea-version since-build="252" />
     <description><![CDATA[
         <p><b>frictionless</b> is a repository that provides a pure template to make it easier to create a new plugin project.</p>
         <p>The main goal of this template is to speed up the setup phase of plugin development for both new and experienced developers by preconfiguring the project scaffold and CI, linking to the proper documentation pages, and keeping everything organized.</p>
