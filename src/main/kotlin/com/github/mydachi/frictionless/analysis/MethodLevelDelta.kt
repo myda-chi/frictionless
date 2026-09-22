@@ -8,6 +8,7 @@ import com.github.mydachi.frictionless.model.Verdict
 import com.github.mydachi.frictionless.model.VerdictCounts
 import com.intellij.openapi.fileTypes.FileType
 import com.intellij.openapi.fileTypes.FileTypeManager
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
@@ -56,11 +57,30 @@ object MethodLevelDelta {
             compare(project, changedFile)
         }
 
+    /**
+     * The methods the ledger verifies — everything the change touched **except deletions**.
+     *
+     * A deleted method has no behaviour left to verify, nothing to open, and no test that can reach
+     * it, so A3 finds nothing and A4 calls it Unverified. That reads as risk where there is none,
+     * and because Unverified sorts first it pushes the methods that do matter out of the tour
+     * entirely — a branch that deletes a file used to fill every stop with methods the tour could
+     * not even open.
+     *
+     * [delta] still reports deletions; this is the ledger's view, not the whole answer.
+     */
     fun changedMethods(project: Project, changedFile: ChangedFile): List<ChangedMethod> =
-        delta(project, changedFile).map { it.method }
+        delta(project, changedFile).map { it.method }.filterNot { it.removed }
 
-    fun changedMethods(project: Project, changedFiles: List<ChangedFile>): List<ChangedMethod> =
-        changedFiles.flatMap { changedMethods(project, it) }
+    fun changedMethods(project: Project, changedFiles: List<ChangedFile>): List<ChangedMethod> {
+        val all = changedFiles.flatMap { delta(project, it).map { delta -> delta.method } }
+        val (deleted, present) = all.partition { it.removed }
+        if (deleted.isNotEmpty()) {
+            thisLogger().info(
+                "Excluding ${deleted.size} deleted method(s) from the ledger: nothing left to verify",
+            )
+        }
+        return present
+    }
 
     /** The whole A1 → A2 pipeline, in the shape every other track consumes. */
     fun changeSet(project: Project, source: ChangeSource, changedFiles: List<ChangedFile>): ChangeSet =
@@ -112,6 +132,7 @@ object MethodLevelDelta {
             // Call sites and reaching tests are A3/A6. A removed method has nothing in the working
             // tree to navigate to, so it gets no pointer rather than a dangling one.
             virtualFile = changedFile.file,
+            removed = change == MethodChange.REMOVED,
             pointer = if (change == MethodChange.REMOVED) {
                 null
             } else {
