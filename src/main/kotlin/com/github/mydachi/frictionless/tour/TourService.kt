@@ -170,7 +170,17 @@ class TourService(private val project: Project) {
     private fun show(method: ChangedMethod) = WriteIntentReadAction.run<RuntimeException> {
         clearDim()
         // Navigator positions the caret and scrolls; this only needs the line for the spotlight.
-        val editor = Navigator.open(project, method) ?: return@run
+        val editor = Navigator.open(project, method)
+        if (editor == null) {
+            // The one silent path through a stop. A stale PSI pointer plus a missing VirtualFile
+            // leaves nothing to open and nothing in the log, which from the outside is
+            // indistinguishable from the tour having stopped here.
+            thisLogger().warn(
+                "Could not open ${method.displayName} (${method.filePath}); " +
+                    "pointerResolved=${method.pointer?.element != null}, file=${method.virtualFile != null}",
+            )
+            return@run
+        }
         val line = (method.line - 1).coerceIn(0, (editor.document.lineCount - 1).coerceAtLeast(0))
         spotlight(editor, line)
     }
