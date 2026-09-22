@@ -32,6 +32,10 @@ class LedgerModel(@Suppress("unused") private val project: Project) {
     @Volatile
     var source: ChangeSource = ChangeSource.WorkingTree
 
+    /** Remembered so switching branches repeatedly costs one click (U5). */
+    @Volatile
+    var lastBase: String? = null
+
     private val listeners = CopyOnWriteArrayList<(LedgerState) -> Unit>()
 
     fun addListener(listener: (LedgerState) -> Unit) {
