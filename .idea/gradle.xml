@@ -5,6 +5,9 @@
     <option name="linkedExternalProjectsSettings">
       <GradleProjectSettings>
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <!-- Run tests with the platform runner, not Gradle: Frictionless launches a JUnitConfiguration
+             directly, so this is both the path the plugin exercises and the faster one. -->
+        <option name="testRunner" value="PLATFORM" />
         <option name="gradleJvm" value="21" />
         <option name="modules">
           <set>
