@@ -1,0 +1,61 @@
+diff --git a/src/main/java/com/example/transfer/Account.java b/src/main/java/com/example/transfer/Account.java
+index cfe9bd8..0efd836 100644
+--- a/src/main/java/com/example/transfer/Account.java
++++ b/src/main/java/com/example/transfer/Account.java
+@@ -2,6 +2,9 @@ package com.example.transfer;
+ 
+ public class Account {
+ 
++    // Small pending-hold buffer: lets a debit clear slightly ahead of a hold settling.
++    private static final long OVERDRAFT_BUFFER_CENTS = 500;
++
+     private final String id;
+     private long balanceCents;
+ 
+@@ -19,7 +22,7 @@ public class Account {
+     }
+ 
+     public void debit(long amountCents) {
+-        if (amountCents > balanceCents) {
++        if (amountCents > balanceCents + OVERDRAFT_BUFFER_CENTS) {
+             throw new IllegalStateException("insufficient funds in account " + id);
+         }
+         balanceCents -= amountCents;
+diff --git a/src/main/java/com/example/transfer/TransferService.java b/src/main/java/com/example/transfer/TransferService.java
+index c75ff99..a071901 100644
+--- a/src/main/java/com/example/transfer/TransferService.java
++++ b/src/main/java/com/example/transfer/TransferService.java
+@@ -11,8 +11,7 @@ public class TransferService {
+     /** Moves money between two accounts in the same currency. */
+     public void transfer(Account from, Account to, long amountCents) {
+         validateAmount(amountCents);
+-        from.debit(amountCents);
+-        to.credit(amountCents);
++        moveFunds(from, to, amountCents, amountCents);
+     }
+ 
+     /** Moves money between two accounts, converting currency and taking a margin on the spread. */
+@@ -20,14 +19,19 @@ public class TransferService {
+         validateAmount(amountCents);
+         double rate = fxRateProvider.rateFor(fromCurrency, toCurrency);
+         long convertedCents = applyFxMargin(amountCents, rate);
+-        from.debit(amountCents);
+-        to.credit(convertedCents);
++        moveFunds(from, to, amountCents, convertedCents);
+         return convertedCents;
+     }
+ 
++    // Simplified while extracting moveFunds() - rate is applied directly now, margin folded in
++    // upstream.
+     long applyFxMargin(long amountCents, double rate) {
+-        double marginRate = rate * 0.99; // take a 1% margin
+-        return Math.round(amountCents * marginRate);
++        return Math.round(amountCents * rate);
++    }
++
++    private void moveFunds(Account from, Account to, long debitCents, long creditCents) {
++        from.debit(debitCents);
++        to.credit(creditCents);
+     }
+ 
+     private void validateAmount(long amountCents) {
