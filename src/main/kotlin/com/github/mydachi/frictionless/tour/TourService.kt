@@ -158,6 +158,11 @@ class TourService(private val project: Project) {
         val ready = project.service<LedgerModel>().state as? LedgerState.Ready ?: return emptyList()
         val rank = mapOf(Bucket.UNVERIFIED to 0, Bucket.BEHAVIOUR_CHANGED to 1, Bucket.PROVEN to 2)
         return ready.changeSet.methods
+            // Nothing to show means nothing to stop on. Deletions are already kept out of the
+            // ledger, but a stale pointer can leave any method unopenable, and a stop that cannot
+            // open its file is a stop where the screen does not move — which reads as the tour
+            // having stopped.
+            .filter { it.pointer != null || it.virtualFile != null }
             .sortedBy { rank[it.verdict.bucket] ?: 3 }
             .take(5)
     }

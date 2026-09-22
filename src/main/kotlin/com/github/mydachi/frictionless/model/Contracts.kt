@@ -49,6 +49,14 @@ data class ChangedMethod(
      * so navigation carries it rather than looking it up again at the worst possible moment.
      */
     val virtualFile: VirtualFile? = null,
+    /**
+     * The method is gone from the head side — the change deleted it.
+     *
+     * It has no behaviour left to verify, nothing to navigate to, and no test can reach it. Saying
+     * "no test reaches this code" about code that no longer exists is a false alarm, so the ledger
+     * leaves it out (see [com.github.mydachi.frictionless.analysis.MethodLevelDelta.changedMethods]).
+     */
+    val removed: Boolean = false,
 )
 
 data class CallSite(
