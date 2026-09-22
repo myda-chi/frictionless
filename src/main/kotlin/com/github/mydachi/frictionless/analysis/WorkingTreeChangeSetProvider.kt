@@ -85,10 +85,11 @@ object WorkingTreeChangeSetProvider : ChangeSetProvider {
      *
      * `Project.getBasePath()` rather than `getBaseDir()`: the latter is deprecated in 2025.2, and
      * `ProjectUtil.guessProjectDir` — the documented replacement — is not reachable from the plugin's
-     * compile classpath for every module set. A string prefix test answers the same question with no
-     * extra dependency, and a file outside the project keeps its absolute path rather than losing it.
+     * compile classpath (`ProjectUtil` ships in `lib/app-client.jar`, not on it). A string prefix test
+     * answers the same question with no extra dependency, and a file outside the project keeps its
+     * absolute path rather than losing it.
      */
-    private fun displayPath(project: Project, file: VirtualFile): String {
+    internal fun displayPath(project: Project, file: VirtualFile): String {
         val basePath = project.basePath ?: return file.path
         val prefix = "$basePath/"
         return if (file.path.startsWith(prefix)) file.path.removePrefix(prefix) else file.path

@@ -12,6 +12,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.vcsUtil.VcsUtil
+import java.io.File
 import java.nio.file.Files
 
 /**
@@ -106,6 +107,29 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
         assertEquals(ChangedFileKind.MODIFIED, ChangedFileKind.of(null, null))
     }
 
+    /**
+     * The ledger paints `path` as text, so this has to be project-relative for a file the developer
+     * would recognise, and untouched for one that lives outside the project — a fragment of an
+     * absolute path is worse than the whole thing.
+     */
+    fun testFileInsideTheProjectIsReportedProjectRelative() {
+        val basePath = project.basePath!!
+        val file = localFileIn(File(basePath), "src/main/kotlin/Inside.kt", "class Inside\n")
+
+        val path = WorkingTreeChangeSetProvider.displayPath(project, file)
+
+        assertEquals("src/main/kotlin/Inside.kt", path)
+    }
+
+    fun testFileOutsideTheProjectKeepsItsAbsolutePath() {
+        val file = localFile("Outside.kt", "class Outside\n")
+
+        val path = WorkingTreeChangeSetProvider.displayPath(project, file)
+
+        assertEquals(file.path, path)
+        assertFalse("expected an absolute path, got $path", path.startsWith("src/"))
+    }
+
     private fun baseRevision(content: String, path: FilePath): ContentRevision = BaseRevision(content, path)
 
     private fun changedFile(path: String) = ChangedFile(path, ChangedFileKind.MODIFIED, null, null, null)
@@ -113,16 +137,21 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
     private fun write(action: () -> Unit) = WriteCommandAction.runWriteCommandAction(project, action)
 
     /**
-     * A file the platform can resolve back to a [VirtualFile]. `VcsUtil` builds its [FilePath] from a
-     * path string, and a `temp:///` fixture file never resolves back through it, so tests that need a
-     * real `file` use the local file system.
+     * A file the platform can resolve back to a [VirtualFile], at [file] on the local file system.
+     *
+     * `VcsUtil` builds its [FilePath] from a path string and a `temp:///` fixture file never resolves
+     * back through it, so tests that need a real `file` — and every `displayPath` test, which is about
+     * real paths — use the local file system.
      */
-    private fun localFile(name: String, text: String): VirtualFile {
-        val directory = Files.createTempDirectory("frictionless-a1").toFile()
-        val file = directory.resolve(name)
+    private fun localFileIn(directory: File, relative: String, text: String): VirtualFile {
+        val file = File(directory, relative)
+        file.parentFile.mkdirs()
         file.writeText(text)
         return LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file.toPath())!!
     }
+
+    private fun localFile(name: String, text: String): VirtualFile =
+        localFileIn(Files.createTempDirectory("frictionless-a1").toFile(), name, text)
 }
 
 /** The base side of a change, holding the content A2 parses. */
