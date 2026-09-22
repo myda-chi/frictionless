@@ -32,6 +32,7 @@ dependencies {
         } else {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
+        bundledPlugin("Git4Idea")
         testFramework(TestFrameworkType.Platform)
     }
 }
