@@ -74,6 +74,7 @@ class TourService(private val project: Project) {
 
         this.stops = stops
         cancelled = false
+        thisLogger().info("Tour starting: ${stops.size} stop(s) — ${stops.joinToString { it.displayName }}")
         project.service<NarrationService>().say(opening(stops.size))
         schedule(SETTLE_MILLIS) { runStop(0) }
     }
@@ -106,19 +107,35 @@ class TourService(private val project: Project) {
         }
 
         schedule(SETTLE_MILLIS) {
-            project.service<NarrationService>().say(spokenFor(method))
+            val line = spokenFor(method)
+            thisLogger().info("Tour stop ${index + 1}/${stops.size}: ${method.displayName} — \"$line\"")
+            project.service<NarrationService>().say(line)
             // Advance when the line has actually finished, not when a guessed duration has elapsed.
             whenQuiet { schedule(dwellMillis) { runStop(index + 1) } }
         }
     }
 
-    /** Polls until nothing is speaking, then runs [action]. Silent machines fall straight through. */
-    private fun whenQuiet(action: () -> Unit) {
+    /**
+     * Polls until nothing is speaking, then runs [action]. Silent machines fall straight through.
+     *
+     * Bounded by [MAX_WAIT_MILLIS]. Waiting on the voice is what keeps the narration in step with
+     * the highlight, but a tour that waits *for ever* because something never reported itself
+     * finished is worse than one that runs slightly ahead — on stage it just looks frozen. After the
+     * cap it gives up on the line and carries on, and says so in the log.
+     */
+    private fun whenQuiet(waitedMillis: Int = 0, action: () -> Unit) {
         if (cancelled) return
-        if (!project.service<NarrationService>().isSpeaking) {
-            action()
-        } else {
-            schedule(POLL_MILLIS) { whenQuiet(action) }
+        when {
+            !project.service<NarrationService>().isSpeaking -> action()
+
+            waitedMillis >= MAX_WAIT_MILLIS -> {
+                thisLogger().warn(
+                    "Narration did not finish within ${MAX_WAIT_MILLIS}ms; continuing the tour without waiting",
+                )
+                action()
+            }
+
+            else -> schedule(POLL_MILLIS) { whenQuiet(waitedMillis + POLL_MILLIS, action) }
         }
     }
 
@@ -200,5 +217,8 @@ class TourService(private val project: Project) {
 
         /** How often to check whether the current line has finished. */
         const val POLL_MILLIS = 120
+
+        /** Longest the tour will wait on one line before moving on regardless. */
+        const val MAX_WAIT_MILLIS = 8000
     }
 }

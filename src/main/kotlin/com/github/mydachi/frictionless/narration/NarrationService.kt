@@ -93,7 +93,10 @@ class NarrationService(@Suppress("unused") private val project: Project) {
                 val command = GeneralCommandLine(chosen.binary).withParameters(chosen.args(text))
                 val process = command.createProcess()
                 current = process
-                process.waitFor()
+                val exit = process.waitFor()
+                if (exit != 0) {
+                    thisLogger().warn("'${chosen.binary}' exited with $exit for: $text")
+                }
             } catch (e: Exception) {
                 thisLogger().info("Narration failed, continuing silently", e)
             } finally {
