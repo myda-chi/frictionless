@@ -14,7 +14,8 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
-    <!-- E1: JUnitConfiguration lives in the Java and JUnit plugins, not the base platform. -->
+    <!-- Java PSI (PsiMethod/PsiClass) for the analyser, and JUnitConfiguration for E1's run-config
+         builder: both live in the Java/JUnit plugins, not the base platform. -->
     <depends>com.intellij.modules.java</depends>
     <depends>JUnit</depends>
 

@@ -2,12 +2,9 @@ package com.github.mydachi.frictionless.analysis
 
 import com.github.mydachi.frictionless.model.ChangeSource
 import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.vcs.FilePath
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.openapi.vcs.changes.Change
-import com.intellij.openapi.vcs.changes.ContentRevision
 import com.intellij.openapi.vcs.changes.CurrentContentRevision
-import com.intellij.openapi.vcs.history.VcsRevisionNumber
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -48,7 +45,7 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
 
         val changed = WorkingTreeChangeSetProvider.toChangedFile(
             project,
-            Change(baseRevision("class Before\n", path), CurrentContentRevision(path), FileStatus.MODIFIED),
+            Change(BaseRevision("class Before\n", path), CurrentContentRevision(path), FileStatus.MODIFIED),
         )
 
         assertEquals(ChangedFileKind.MODIFIED, changed.kind)
@@ -62,7 +59,7 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
     fun testDeletionKeepsTheBaseRevisionAndDropsTheWorkingTreeFile() {
         val file = localFile("Gone.kt", "class Gone\n")
         val path = VcsUtil.getFilePath(file)
-        val change = Change(baseRevision("class Gone\n", path), null, FileStatus.DELETED)
+        val change = Change(BaseRevision("class Gone\n", path), null, FileStatus.DELETED)
 
         write { file.delete(this) }
         val changed = WorkingTreeChangeSetProvider.toChangedFile(project, change)
@@ -131,8 +128,6 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
         assertFalse("expected an absolute path, got $path", path.startsWith("src/"))
     }
 
-    private fun baseRevision(content: String, path: FilePath): ContentRevision = BaseRevision(content, path)
-
     private fun changedFile(path: String) = ChangedFile(path, ChangedFileKind.MODIFIED, null, null, null)
 
     private fun write(action: () -> Unit) = WriteCommandAction.runWriteCommandAction(project, action)
@@ -140,7 +135,7 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
     /**
      * A file the platform can resolve back to a [VirtualFile], at [file] on the local file system.
      *
-     * `VcsUtil` builds its [FilePath] from a path string and a `temp:///` fixture file never resolves
+     * `VcsUtil` builds its FilePath from a path string and a `temp:///` fixture file never resolves
      * back through it, so tests that need a real `file` — and every `displayPath` test, which is about
      * real paths — use the local file system.
      */
@@ -150,17 +145,6 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
         file.writeText(text)
         return LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file.toPath())!!
     }
-
     private fun localFile(name: String, text: String): VirtualFile =
         localFileIn(Files.createTempDirectory("frictionless-a1").toFile(), name, text)
-}
-
-/** The base side of a change, holding the content A2 parses. */
-private class BaseRevision(
-    private val content: String,
-    private val file: FilePath,
-) : ContentRevision {
-    override fun getContent(): String = content
-    override fun getFile(): FilePath = file
-    override fun getRevisionNumber(): VcsRevisionNumber = VcsRevisionNumber.NULL
 }

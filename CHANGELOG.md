@@ -8,3 +8,7 @@
 - A1 — working-tree change set: `WorkingTreeChangeSetProvider` reports the files that differ from the
   checkout's base revision (tracked changes plus unversioned files), each carrying its kind and the
   base `ContentRevision` that A2 parses. File level only — methods are A2's deliverable.
+- A2 — method-level PSI delta: `MethodLevelDelta` parses the base revision and the working tree as
+  `PsiFile`s and matches their methods by signature, reporting added, removed and modified methods as
+  `ChangedMethod`s. Methods carry the empty verdict until A3 and A4 classify them. Adds the
+  `com.intellij.java` dependency the Java PSI (`PsiMethod`, `PsiClass`) requires.
