@@ -13,9 +13,9 @@ import com.intellij.openapi.editor.Inlay
 import com.intellij.openapi.editor.EditorCustomElementRenderer
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.markup.HighlighterLayer
-import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.editor.markup.RangeHighlighter
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.UIUtil
@@ -38,8 +38,11 @@ class VerdictMarkup(private val project: Project) {
     fun refresh() {
         clear()
         val ready = project.service<LedgerModel>().state as? LedgerState.Ready ?: return
+        // Every open text editor, not the selected one repeated (issue #60): the lambda used to
+        // ignore its parameter, so a split view left the unfocused pane unmarked during the tour.
         val open = FileEditorManager.getInstance(project).allEditors
-            .mapNotNull { FileEditorManager.getInstance(project).selectedTextEditor }
+            .filterIsInstance<TextEditor>()
+            .map { it.editor }
             .distinct()
         ready.changeSet.methods.forEach { method -> open.forEach { editor -> paint(editor, method) } }
     }
@@ -90,7 +93,4 @@ class VerdictMarkup(private val project: Project) {
         }
     }
 
-    companion object {
-        val DIM_AREA: HighlighterTargetArea = HighlighterTargetArea.EXACT_RANGE
-    }
 }
