@@ -1,8 +1,8 @@
-package com.github.mydachi.frictionless.collaboration
+package com.github.mydachi.frictionless.actions
 
 import junit.framework.TestCase
 
-class ShareReceiptsSessionActionTest : TestCase() {
+class ShareCodeWithMeSessionTest : TestCase() {
 
     fun testLooksLikeStartActionMatchesShareOrStart() {
         assertTrue(looksLikeStartAction("CodeWithMe.ShareProject", "Start Code With Me..."))

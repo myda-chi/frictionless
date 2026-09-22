@@ -75,10 +75,10 @@ class PlayTourAction : AnAction(MyBundle["action.play"], null, AllIcons.Debugger
     }
 }
 
-/** Code With Me session sharing. Owned by C1. */
+/** Code With Me session sharing. Owned by C1. Logic lives in [shareCodeWithMeSession]. */
 class ShareSessionAction : AnAction(MyBundle["action.share"], null, AllIcons.Toolwindows.ToolWindowProfiler), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        notYet(project, MyBundle["action.share"], "#38")
+        shareCodeWithMeSession(project, e)
     }
 }
