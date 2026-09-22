@@ -1,9 +1,9 @@
-# Receipts — Technical Specification
+# Frictionless — Technical Specification
 
 **42 Abu Dhabi × JetBrains Hackathon · "Help the Developer"**
 **Date:** 22–23 September 2026
 **Author:** Hackeem Mensah Bosu
-**Repository:** `frictionless` — the product ships as **Receipts**; plugin ID, README and slides all use *Receipts*.
+**Name:** Frictionless — repo, plugin display name, README and slides all agree.
 
 ---
 
@@ -13,7 +13,7 @@ AI now writes roughly **42%** of committed code. **96%** of developers say they 
 
 **The bottleneck has moved from writing code to verifying it — and no existing tool measures verification.** Every competing approach reviews AI-generated code by asking a second AI for its opinion on a text diff. That is an opinion, not evidence.
 
-**Receipts verifies by evidence.** It walks the call graph from every changed method, runs only the tests that genuinely reach that method, and reports what is proven, what changed, and what nothing tests.
+**Frictionless verifies by evidence.** It walks the call graph from every changed method, runs only the tests that genuinely reach that method, and reports what is proven, what changed, and what nothing tests.
 
 ---
 
@@ -21,12 +21,12 @@ AI now writes roughly **42%** of committed code. **96%** of developers say they 
 
 | | |
 |---|---|
-| **Name** | Receipts |
+| **Name** | Frictionless |
 | **Type** | IntelliJ IDEA plugin |
 | **Languages supported** | Java, Kotlin |
 | **Core question answered** | "Of these changes, which of them is anything actually checking?" |
 | **Review modes** | Uncommitted working tree · any branch compared against `main` (§3.0) |
-| **Entry point** | A **Receipts** tool window in the sidebar; its toolbar holds the source picker and the Run and Play buttons (§3.0) |
+| **Entry point** | A **Frictionless** tool window in the sidebar; its toolbar holds the source picker and the Run and Play buttons (§3.0) |
 | **Collaboration** | A review can be walked together over Code With Me (§3.5.1) |
 | **Differentiator** | Verifies via real test execution over a real call graph — not an LLM's opinion on a diff |
 
@@ -36,7 +36,7 @@ AI now writes roughly **42%** of committed code. **96%** of developers say they 
 
 ### 3.0 Change Source (mandatory)
 
-Receipts reviews a **change set**, not specifically uncommitted work. The toolbar's source picker offers two modes:
+Frictionless reviews a **change set**, not specifically uncommitted work. The toolbar's source picker offers two modes:
 
 | Mode | Compares | Use |
 |---|---|---|
@@ -102,7 +102,7 @@ This is what makes the product legible from the back of a room — the audience 
 
 #### 3.5.1 Reviewing together over Code With Me (stretch)
 
-In branch mode the review is a PR review, so it should be shareable. **Share Receipts session** starts a [Code With Me](https://www.jetbrains.com/help/idea/faq-about-code-with-me.html) session and copies the invite link, so the author and reviewer walk the same ledger together.
+In branch mode the review is a PR review, so it should be shareable. **Share Frictionless session** starts a [Code With Me](https://www.jetbrains.com/help/idea/faq-about-code-with-me.html) session and copies the invite link, so the author and reviewer walk the same ledger together.
 
 **What actually works, and what does not.** The Autopilot tour is editor navigation — scrolling, caret movement, highlighters — which is exactly what Code With Me synchronises, so a guest following the host sees the tour. But [not all tool windows are available to guests](https://www.jetbrains.com/help/idea/faq-about-code-with-me.html), and a third-party tool window is very unlikely to render on the guest side. So: **the ledger stays host-side, the tour is the shared surface.** Verify this early with two IDEs — do not discover it on stage.
 
@@ -281,7 +281,7 @@ Built backwards: if a feature does not appear in this sequence, it is not a prio
 | 5 | It stops on a red (unverified) method. | *"Nothing tests this."* — then **hold two full seconds of silence. Do not fill it.** |
 | 6 | Click **Pin behaviour**. The agent writes a characterisation test, runs it, reads the failure, fixes it, runs again — green. | **This red-to-green moment is the whole demo. Everything else exists to set it up.** |
 | 7 | Switch the source picker to **Branch**, pick a teammate's branch, run it again. | *"Same thing on someone else's PR — and I can hand them the link."* One beat only; do not re-run the whole tour |
-| 8 | Close. | *"Review time should be proportional to risk, not to line count. Here are the receipts."* |
+| 8 | Close. | *"Review time should be proportional to risk, not to line count. That is the friction we removed."* |
 
 ---
 
@@ -330,6 +330,6 @@ Run this **at setup**, not five minutes before going on stage:
 
 Every competing approach to "review AI-generated code" ultimately reduces to: *ask a second AI what it thinks of a text diff.* That is an opinion — informed, perhaps, but unverifiable and occasionally confidently wrong, exactly like the code it's reviewing.
 
-**Receipts verifies by evidence.** It runs the actual codebase. A method is "proven" because a real test actually executed it and passed — not because a language model said it looked fine.
+**Frictionless verifies by evidence.** It runs the actual codebase. A method is "proven" because a real test actually executed it and passed — not because a language model said it looked fine.
 
-This directly satisfies the brief's explicit warning against "wrapping a prompt around a common IDE action": Receipts' core mechanism (call-graph walking + targeted real test execution) produces evidence with or without any AI involved at all. The AI (Koog agent) is used only where it belongs — to *close* an identified gap (writing a missing test) — and even then, it is checked by the same ground truth (the test runner) as everything else, so it cannot fabricate a result.
+This directly satisfies the brief's explicit warning against "wrapping a prompt around a common IDE action": Frictionless' core mechanism (call-graph walking + targeted real test execution) produces evidence with or without any AI involved at all. The AI (Koog agent) is used only where it belongs — to *close* an identified gap (writing a missing test) — and even then, it is checked by the same ground truth (the test runner) as everything else, so it cannot fabricate a result.
