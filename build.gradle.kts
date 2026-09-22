@@ -33,11 +33,11 @@ dependencies {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
         bundledPlugin("Git4Idea")
-        testFramework(TestFrameworkType.Platform)
-
-        // E1 builds and launches a JUnitConfiguration, which lives in the bundled Java and JUnit
-        // plugins rather than the base platform - see plugin.xml for the matching runtime <depends>.
+        // E1's run-config builder and the Analysis track's PSI diff both need the bundled Java
+        // plugin: JUnitConfiguration, PsiMethod and PsiClass all live there, not in the base
+        // platform. JUnit is E1's addition on top. See plugin.xml for the matching <depends>.
         bundledPlugin("com.intellij.java")
         bundledPlugin("JUnit")
+        testFramework(TestFrameworkType.Platform)
     }
 }
