@@ -14,6 +14,9 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
+    <!-- E1: JUnitConfiguration lives in the Java and JUnit plugins, not the base platform. -->
+    <depends>com.intellij.modules.java</depends>
+    <depends>JUnit</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
