@@ -54,7 +54,14 @@ class PinBehaviourService(private val project: Project) {
                     is CharacterisationTestAgent.Result.Unavailable -> {
                         // No model available. Still leave something real behind: a disabled
                         // placeholder in the right package, which cannot fake a pass.
-                        val template = TemplateTest.forMethod(method, context.testPackage, kotlin)
+                        val template = TemplateTest.forMethod(
+                            method = method,
+                            packageName = context.testPackage,
+                            kotlin = kotlin,
+                            // Read from the repository's own tests, not assumed: a placeholder that
+                            // does not compile breaks the build it was meant to help.
+                            junit5 = TemplateTest.usesJUnit5(context.conventionExamples),
+                        )
                         val written = ProjectTestWriter(project, kotlin).write(template)
                         notify(
                             if (written) MyBundle["pin.template", template.className, result.reason]
