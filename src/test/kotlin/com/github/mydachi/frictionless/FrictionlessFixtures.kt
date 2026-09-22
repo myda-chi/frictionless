@@ -21,7 +21,7 @@ import com.github.mydachi.frictionless.model.VerdictCounts
  *  2. **Retired at hour 5.** The moment A2 lands, every track moves to real changed methods with
  *     empty verdicts. Real but incomplete data beats fake complete data.
  */
-object ReceiptsFixtures {
+object FrictionlessFixtures {
 
     fun proven() = ChangedMethod(
         id = "fixture:proven",

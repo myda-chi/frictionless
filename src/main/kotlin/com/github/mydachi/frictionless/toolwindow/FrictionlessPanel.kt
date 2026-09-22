@@ -28,7 +28,7 @@ import javax.swing.JComponent
  * The rows themselves are U2's job — this owns the frame, the counts header and the three states a
  * developer can actually hit (nothing run yet, running, failed).
  */
-class ReceiptsPanel(project: Project, parent: Disposable) : SimpleToolWindowPanel(true, true) {
+class FrictionlessPanel(project: Project, parent: Disposable) : SimpleToolWindowPanel(true, true) {
 
     private val model = project.service<LedgerModel>()
     private val counts = JBLabel()
@@ -53,7 +53,7 @@ class ReceiptsPanel(project: Project, parent: Disposable) : SimpleToolWindowPane
     }
 
     private fun buildToolbar(): JComponent {
-        val group = ActionManager.getInstance().getAction("Receipts.Toolbar") as DefaultActionGroup
+        val group = ActionManager.getInstance().getAction("Frictionless.Toolbar") as DefaultActionGroup
         val toolbar: ActionToolbar = ActionManager.getInstance()
             .createActionToolbar(ActionPlaces.TOOLWINDOW_TITLE, group, true)
         toolbar.targetComponent = this

@@ -1,12 +1,12 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>com.github.mydachi.frictionless</id>
-    <name>Receipts</name>
+    <name>Frictionless</name>
     <vendor>myda-chi</vendor>
 
     <idea-version since-build="252" />
     <description><![CDATA[
-        <p><b>Receipts</b> answers one question about a change set: which of it is anything actually checking?</p>
+        <p><b>Frictionless</b> answers one question about a change set: which of it is anything actually checking?</p>
         <p>It walks the call graph from every changed method, runs only the tests that genuinely reach that
         method, and sorts the result into proven, behaviour changed, and unverified. The unverified bucket is
         the point — that is where bugs in AI-written code live, and CI stays green because nothing tests it.</p>
@@ -17,20 +17,20 @@
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="Receipts" anchor="right"
-                    factoryClass="com.github.mydachi.frictionless.toolwindow.ReceiptsToolWindowFactory"/>
+        <toolWindow id="Frictionless" anchor="right"
+                    factoryClass="com.github.mydachi.frictionless.toolwindow.FrictionlessToolWindowFactory"/>
     </extensions>
 
     <actions>
         <!-- No default keyboard shortcuts: IntelliJ's shortcut map is dense and personally customised. -->
-        <group id="Receipts.Toolbar">
-            <action id="Receipts.SourcePicker"
+        <group id="Frictionless.Toolbar">
+            <action id="Frictionless.SourcePicker"
                     class="com.github.mydachi.frictionless.actions.SourcePickerAction"/>
-            <action id="Receipts.Run"
-                    class="com.github.mydachi.frictionless.actions.RunReceiptsAction"/>
-            <action id="Receipts.Play"
+            <action id="Frictionless.Run"
+                    class="com.github.mydachi.frictionless.actions.RunAnalysisAction"/>
+            <action id="Frictionless.Play"
                     class="com.github.mydachi.frictionless.actions.PlayTourAction"/>
-            <action id="Receipts.Share"
+            <action id="Frictionless.Share"
                     class="com.github.mydachi.frictionless.actions.ShareSessionAction"/>
         </group>
     </actions>

@@ -60,7 +60,7 @@ class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
 }
 
 /** Run the analysis over the selected change set. Owned by A1–A4. */
-class RunReceiptsAction : AnAction(MyBundle["action.run"], null, AllIcons.Actions.Execute), DumbAware {
+class RunAnalysisAction : AnAction(MyBundle["action.run"], null, AllIcons.Actions.Execute), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         notYet(project, MyBundle["action.run"], "#15")

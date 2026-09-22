@@ -55,6 +55,6 @@ class LedgerModel(@Suppress("unused") private val project: Project) {
 
     companion object {
         @JvmField
-        val TOPIC: Topic<Runnable> = Topic.create("Receipts ledger changed", Runnable::class.java)
+        val TOPIC: Topic<Runnable> = Topic.create("Frictionless ledger changed", Runnable::class.java)
     }
 }

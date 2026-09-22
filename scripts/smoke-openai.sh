@@ -11,9 +11,9 @@ echo "calling the API…"
 response=$(curl -sS -X POST https://api.openai.com/v1/chat/completions \
   -H "Authorization: Bearer ${OPENAI_API_KEY}" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"reply with the single word: receipts"}],"max_tokens":5}')
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"reply with the single word: frictionless"}],"max_tokens":5}')
 
-if echo "$response" | grep -qi "receipts"; then
+if echo "$response" | grep -qi "frictionless"; then
   echo "OK — the key works from this machine."
 else
   echo "FAILED. Raw response:" >&2
