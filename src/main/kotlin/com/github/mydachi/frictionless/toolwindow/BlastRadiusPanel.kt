@@ -87,7 +87,8 @@ class BlastRadiusPanel(private val project: Project) : JBPanel<BlastRadiusPanel>
                 val mark = when (test.outcome) {
                     TestOutcome.PASSED -> "✓"
                     TestOutcome.FAILED, TestOutcome.ERROR -> "✗"
-                    TestOutcome.NOT_RUN -> "·"
+                    // Skipped reads as not-run rather than as a tick: nothing executed.
+                    TestOutcome.SKIPPED, TestOutcome.NOT_RUN -> "·"
                 }
                 body.add(hint("$mark ${test.displayName}"))
             }

@@ -1,8 +1,8 @@
 package com.github.mydachi.frictionless.execution
 
 import com.github.mydachi.frictionless.model.TestOutcome
+import com.intellij.execution.testframework.sm.runner.SMTestProxy
 import com.github.mydachi.frictionless.model.TestRef
-import com.intellij.execution.testframework.sm.runner.states.TestStateInfo.Magnitude
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -14,7 +14,7 @@ import org.junit.Test
  * a live `SMTestProxy` tree that only exists during a real JUnit run, which this suite does not spin
  * up. What is pinned here is the two pure decisions that determine correctness once real events
  * arrive: parsing the JUnit runtime's `java:test://` location URL back into a [TestRef], and mapping
- * every `TestStateInfo.Magnitude` to a [TestOutcome] without ever guessing [TestOutcome.PASSED].
+ * a finished test to a [TestOutcome] without ever guessing [TestOutcome.PASSED].
  */
 class TestResultCollectorTest {
 
@@ -37,22 +37,38 @@ class TestResultCollectorTest {
     }
 
     @Test
-    fun `passed, complete and skipped all map to PASSED`() {
-        assertEquals(TestOutcome.PASSED, testOutcomeFromMagnitude(Magnitude.PASSED_INDEX))
-        assertEquals(TestOutcome.PASSED, testOutcomeFromMagnitude(Magnitude.COMPLETE_INDEX))
-        assertEquals(TestOutcome.PASSED, testOutcomeFromMagnitude(Magnitude.SKIPPED_INDEX))
+    fun `a skipped test is reported as skipped, never as a pass`() {
+        // Issue #55, at the layer that was still leaking it: the mapping used to collapse SKIPPED in
+        // with PASSED, so an @Ignore'd test could carry its method all the way to Proven. Nothing
+        // executed, so nothing is proven — SKIPPED counts as neither a pass nor a failure and the
+        // method stays Unverified.
+        assertEquals(TestOutcome.SKIPPED, testOutcomeOf(proxy(ignored = true)))
     }
 
     @Test
-    fun `an assertion failure maps to FAILED`() {
-        assertEquals(TestOutcome.FAILED, testOutcomeFromMagnitude(Magnitude.FAILED_INDEX))
+    fun `ignored wins over passed, because the platform calls a skipped test not-failed`() {
+        assertEquals(TestOutcome.SKIPPED, testOutcomeOf(proxy(ignored = true, passed = true)))
     }
 
     @Test
-    fun `anything else - error, ignored, terminated, not run - maps to ERROR, never a guessed pass`() {
-        assertEquals(TestOutcome.ERROR, testOutcomeFromMagnitude(Magnitude.ERROR_INDEX))
-        assertEquals(TestOutcome.ERROR, testOutcomeFromMagnitude(Magnitude.IGNORED_INDEX))
-        assertEquals(TestOutcome.ERROR, testOutcomeFromMagnitude(Magnitude.TERMINATED_INDEX))
-        assertEquals(TestOutcome.ERROR, testOutcomeFromMagnitude(Magnitude.NOT_RUN_INDEX))
+    fun `a passing test maps to PASSED`() {
+        assertEquals(TestOutcome.PASSED, testOutcomeOf(proxy(passed = true)))
     }
+
+    @Test
+    fun `a defect maps to FAILED`() {
+        assertEquals(TestOutcome.FAILED, testOutcomeOf(proxy(defect = true)))
+    }
+
+    @Test
+    fun `anything else is an ERROR, never a guessed pass`() {
+        assertEquals(TestOutcome.ERROR, testOutcomeOf(proxy()))
+    }
+
+    private fun proxy(passed: Boolean = false, ignored: Boolean = false, defect: Boolean = false) =
+        object : SMTestProxy("t", false, null) {
+            override fun isPassed() = passed
+            override fun isIgnored() = ignored
+            override fun isDefect() = defect
+        }
 }
