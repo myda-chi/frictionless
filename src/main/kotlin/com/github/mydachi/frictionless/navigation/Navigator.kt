@@ -2,6 +2,7 @@ package com.github.mydachi.frictionless.navigation
 
 import com.github.mydachi.frictionless.model.CallSite
 import com.github.mydachi.frictionless.model.ChangedMethod
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -29,11 +30,35 @@ object Navigator {
     fun open(project: Project, callSite: CallSite): Editor? =
         resolve(project, callSite.filePath)?.let { open(project, it, callSite.line) }
 
+    /**
+     * Opening an editor moves the caret, and the caret model asserts read access — which the EDT no
+     * longer grants implicitly. Without this the Autopilot tour dies on its first stop with "Read
+     * access is allowed from inside read-action only", which is what made the tour speak one line
+     * and then stop.
+     */
     fun open(project: Project, file: VirtualFile, line: Int): Editor? =
-        FileEditorManager.getInstance(project)
-            .openTextEditor(OpenFileDescriptor(project, file, (line - 1).coerceAtLeast(0), 0), true)
+        WriteIntentReadAction.compute<Editor?> {
+            FileEditorManager.getInstance(project)
+                .openTextEditor(OpenFileDescriptor(project, file, (line - 1).coerceAtLeast(0), 0), true)
+        }
 
-    /** Fixtures and early Analysis output carry repo-relative paths; real output may be absolute. */
+    /**
+     * Whether [file] is the file [path] names, without touching the VFS.
+     *
+     * [resolve] is a slow operation and must not run on the EDT; this answers the same question by
+     * comparing paths, since analysis paths are project-relative and the editor's are absolute.
+     */
+    fun samePath(project: Project, file: VirtualFile, path: String): Boolean {
+        if (file.path == path) return true
+        val base = project.basePath ?: return false
+        return file.path == "$base/$path"
+    }
+
+    /**
+     * Fixtures and early Analysis output carry repo-relative paths; real output may be absolute.
+     *
+     * **Off the EDT only** — this hits the VFS, which the platform classes as a slow operation.
+     */
     fun resolve(project: Project, path: String): VirtualFile? {
         val fs = LocalFileSystem.getInstance()
         fs.findFileByPath(path)?.let { return it }

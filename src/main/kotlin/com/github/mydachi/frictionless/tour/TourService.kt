@@ -10,6 +10,7 @@ import com.github.mydachi.frictionless.navigation.Navigator
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.editor.markup.HighlighterLayer
@@ -69,15 +70,23 @@ class TourService(private val project: Project) {
 
         var index = 0
         val step = {
-            if (index >= stops.size) {
-                narration.say(closing())
+            // A step that throws used to escape the Swing timer, which kept firing and throwing on
+            // every tick: the tour never finished, so Play stayed stuck showing Stop and nothing was
+            // spoken after the first line. A tour that cannot continue stops, and says so.
+            try {
+                if (index >= stops.size) {
+                    narration.say(closing())
+                    stop()
+                } else {
+                    val method = stops[index]
+                    show(method)
+                    narration.say(spokenFor(method))
+                    listeners.forEach { it(Stop(index, stops.size, method)) }
+                    index++
+                }
+            } catch (e: Exception) {
+                thisLogger().warn("Tour stopped at stop ${index + 1} of ${stops.size}", e)
                 stop()
-            } else {
-                val method = stops[index]
-                show(method)
-                narration.say(spokenFor(method))
-                listeners.forEach { it(Stop(index, stops.size, method)) }
-                index++
             }
         }
 

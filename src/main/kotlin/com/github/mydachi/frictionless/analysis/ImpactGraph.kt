@@ -5,7 +5,8 @@ import com.github.mydachi.frictionless.model.ChangeSet
 import com.github.mydachi.frictionless.model.ChangeSource
 import com.github.mydachi.frictionless.model.ChangedMethod
 import com.github.mydachi.frictionless.model.TestRef
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.psi.PsiElement
@@ -47,10 +48,30 @@ object ImpactGraph {
      * `UNVERIFIED` stays the bucket: assigning a real bucket is A4's job. The counts, however, are A3's
      * answer and are filled in here rather than left at zero, so A4 has the numbers it needs.
      */
-    fun populate(project: Project, methods: List<ChangedMethod>): List<ChangedMethod> =
-        ReadAction.compute<List<ChangedMethod>, RuntimeException> {
+    /**
+     * Runs in **smart mode**. `ReferencesSearch` needs the indexes: during indexing it either throws
+     * or quietly finds nothing, and "quietly finds nothing" is indistinguishable from the honest
+     * answer that no test reaches the method — the ledger would report a whole project as unverified
+     * and be believed. Waiting for indexes is the difference between an empty answer and a wrong one.
+     */
+    fun populate(project: Project, methods: List<ChangedMethod>): List<ChangedMethod> {
+        val enriched = DumbService.getInstance(project).runReadActionInSmartMode<List<ChangedMethod>> {
             methods.map { enrich(project, it) }
         }
+        val withTests = enriched.count { it.reachingTests.isNotEmpty() }
+        thisLogger().info(
+            "Impact graph: ${enriched.size} changed method(s), $withTests with at least one reaching test",
+        )
+        if (enriched.isNotEmpty() && withTests == 0) {
+            // Possible and meaningful in a repo with no tests, but in one that has them it means the
+            // search found nothing — worth being loud about rather than rendering a confident ledger.
+            thisLogger().warn(
+                "No changed method has a reaching test. If this project does have tests, the call-graph " +
+                    "search found none: check that the test roots are marked as test sources.",
+            )
+        }
+        return enriched
+    }
 
     /** The whole A1 → A2 → A3 pipeline in the shape the ledger consumes. */
     fun changeSet(project: Project, source: ChangeSource, changedFiles: List<ChangedFile>): ChangeSet =
