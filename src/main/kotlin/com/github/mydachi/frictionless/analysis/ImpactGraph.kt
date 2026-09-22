@@ -8,14 +8,11 @@ import com.github.mydachi.frictionless.model.TestRef
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
-import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiReference
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
-import com.intellij.psi.util.PsiTreeUtil
 
 /**
  * Deliverable A3: the impact graph — which tests genuinely reach each changed method.
@@ -63,7 +60,7 @@ object ImpactGraph {
         // A removed method has no pointer: nothing in the working tree left to analyse (A2 does not
         // point at the base tree, which is an in-memory PSI file). It keeps its empty answer, which is
         // honest — the method is gone, so no test can reach it any more.
-        val root = changed.pointer?.element as? PsiMethod ?: return changed
+        val root = changed.pointer?.element?.takeIf(Methods::isMethod) ?: return changed
 
         val callSites = callSitesOf(project, root)
         val tests = reachingTests(project, root)
@@ -81,7 +78,7 @@ object ImpactGraph {
     }
 
     /** Who calls this method directly — the blast radius a developer would want to see. */
-    private fun callSitesOf(project: Project, method: PsiMethod): List<CallSite> {
+    private fun callSitesOf(project: Project, method: PsiElement): List<CallSite> {
         val sites = LinkedHashMap<String, CallSite>()
         for (reference in referencesTo(project, method)) {
             val element = reference.element
@@ -103,11 +100,10 @@ object ImpactGraph {
     }
 
     /** The tests that reach this method, however many hops away they are. */
-    private fun reachingTests(project: Project, root: PsiMethod): List<TestRef> {
-        val scope = GlobalSearchScope.projectScope(project)
+    private fun reachingTests(project: Project, root: PsiElement): List<TestRef> {
         val found = LinkedHashMap<String, TestRef>()
-        val visited = HashSet<PsiMethod>()
-        val queue = ArrayDeque<PsiMethod>()
+        val visited = HashSet<PsiElement>()
+        val queue = ArrayDeque<PsiElement>()
         queue += root
 
         while (queue.isNotEmpty()) {
@@ -132,62 +128,30 @@ object ImpactGraph {
     /**
      * References to the method **and to what it overrides** — see the dispatch note on [ImpactGraph].
      */
-    private fun referencesTo(project: Project, method: PsiMethod): List<PsiReference> {
+    private fun referencesTo(project: Project, method: PsiElement): List<PsiReference> {
         val scope = GlobalSearchScope.projectScope(project)
-        val targets = buildList {
-            add(method)
-            addAll(method.findSuperMethods())
-        }
-        return targets.flatMap { ReferencesSearch.search(it, scope, false).findAll() }
+        return Methods.searchTargets(method)
+            .flatMap { ReferencesSearch.search(it, scope, false).findAll() }
+            .distinct()
     }
 
-    private fun isReachingTest(project: Project, method: PsiMethod): Boolean {
+    private fun isReachingTest(project: Project, method: PsiElement): Boolean {
         val file = method.containingFile?.virtualFile ?: return false
         val inTestRoot = ProjectFileIndex.getInstance(project)
             .getContainingSourceRootType(file)?.isForTests == true
-        return inTestRoot && isTestEntryPoint(method)
+        return inTestRoot && Methods.isTestEntryPoint(method)
     }
 
-    /**
-     * A runnable test method, as opposed to a helper that lives under the test root.
-     *
-     * Annotations are matched by qualified name rather than through `JUnitUtil`: that API takes a
-     * `Location` and needs the JUnit plugin live, and it answers `false` for a real `@Test` method in
-     * the headless test fixture (verified). A name check is deterministic, needs no plugin, and covers
-     * the annotations this project's tests actually use.
-     */
-    private fun isTestEntryPoint(method: PsiMethod): Boolean {
-        if (method.annotations.any { it.qualifiedName?.let(TEST_ANNOTATIONS::contains) == true }) return true
+    private fun testRef(project: Project, method: PsiElement): TestRef = TestRef(
+        className = Methods.qualifiedOwner(method) ?: method.containingFile.name,
+        methodName = Methods.nameOf(method),
+        pointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(method),
+    )
 
-        // JUnit 3 had no annotation: subclass TestCase and prefix the name.
-        val owner = method.containingClass ?: return false
-        val extendsTestCase = owner.supers.any { it.qualifiedName == JUNIT3_TEST_CASE }
-        return extendsTestCase && method.name.startsWith("test")
-    }
-
-    private fun testRef(project: Project, method: PsiMethod): TestRef {
-        val owner = PsiTreeUtil.getParentOfType(method, PsiClass::class.java)
-        return TestRef(
-            className = owner?.qualifiedName ?: method.containingFile.name,
-            methodName = method.name,
-            pointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(method),
-        )
-    }
-
-    private fun enclosingMethod(element: PsiElement): PsiMethod? =
-        PsiTreeUtil.getParentOfType(element, PsiMethod::class.java)
+    private fun enclosingMethod(element: PsiElement): PsiElement? = Methods.enclosing(element)
 
     private fun displayPath(element: PsiElement): String =
         element.containingFile.virtualFile?.path ?: element.containingFile.name
 
-    private const val JUNIT3_TEST_CASE = "junit.framework.TestCase"
 
-    private val TEST_ANNOTATIONS = setOf(
-        "org.junit.Test",
-        "org.junit.jupiter.api.Test",
-        "org.junit.jupiter.api.RepeatedTest",
-        "org.junit.jupiter.api.TestFactory",
-        "org.junit.jupiter.params.ParameterizedTest",
-        "kotlin.test.Test",
-    )
 }

@@ -18,6 +18,7 @@
          builder: both live in the Java/JUnit plugins, not the base platform. -->
     <depends>com.intellij.modules.java</depends>
     <depends>JUnit</depends>
+    <depends>org.jetbrains.kotlin</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 

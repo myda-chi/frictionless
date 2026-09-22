@@ -46,6 +46,8 @@ dependencies {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
         bundledPlugin("Git4Idea")
+        // Kotlin PSI (KtNamedFunction) so the analyser sees Kotlin functions, not only Java methods.
+        bundledPlugin("org.jetbrains.kotlin")
         // E1's run-config builder and the Analysis track's PSI diff both need the bundled Java
         // plugin: JUnitConfiguration, PsiMethod and PsiClass all live there, not in the base
         // platform. JUnit is E1's addition on top. See plugin.xml for the matching <depends>.
