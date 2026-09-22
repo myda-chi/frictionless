@@ -36,16 +36,23 @@ import javax.swing.Timer
 @Service(Service.Level.PROJECT)
 class TourService(private val project: Project) {
 
-    /** Milliseconds a stop is held. Long enough to read, short enough to keep a demo moving. */
-    var dwellMillis: Int = 3200
+    /**
+     * How long a stop is held *after* its line has finished being spoken. The total time per stop is
+     * the sentence plus this, so it stays in step with the voice on any machine.
+     */
+    var dwellMillis: Int = 1200
 
     private var timer: Timer? = null
+    private var stops: List<ChangedMethod> = emptyList()
+
+    @Volatile
+    private var cancelled = false
     private var dim: MutableList<Pair<Editor, RangeHighlighter>> = mutableListOf()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(Stop?) -> Unit>()
 
     data class Stop(val index: Int, val total: Int, val method: ChangedMethod)
 
-    val isRunning: Boolean get() = timer?.isRunning == true
+    val isRunning: Boolean get() = !cancelled && timer?.isRunning == true
 
     /**
      * Registers [listener] for as long as [parent] lives.
@@ -66,36 +73,63 @@ class TourService(private val project: Project) {
         val stops = pickStops()
         if (stops.isEmpty()) return
 
-        val narration = project.service<NarrationService>()
-        narration.say(opening(stops.size))
+        this.stops = stops
+        cancelled = false
+        project.service<NarrationService>().say(opening(stops.size))
+        schedule(SETTLE_MILLIS) { runStop(0) }
+    }
 
-        var index = 0
-        val step = {
-            // A step that throws used to escape the Swing timer, which kept firing and throwing on
-            // every tick: the tour never finished, so Play stayed stuck showing Stop and nothing was
-            // spoken after the first line. A tour that cannot continue stops, and says so.
-            try {
-                if (index >= stops.size) {
-                    narration.say(closing())
-                    stop()
-                } else {
-                    val method = stops[index]
-                    show(method)
-                    narration.say(spokenFor(method))
-                    listeners.forEach { it(Stop(index, stops.size, method)) }
-                    index++
-                }
-            } catch (e: Exception) {
-                thisLogger().warn("Tour stopped at stop ${index + 1} of ${stops.size}", e)
-                stop()
-            }
+    /**
+     * One stop: move, then tell the UI, then let it land, then speak.
+     *
+     * The order is the whole fix. The editor and the ledger row change together and *before* the
+     * voice starts, and a short settle keeps the highlight from arriving mid-sentence. The tour used
+     * to advance on a fixed timer while narration queued up behind it, so by the second stop the
+     * voice was describing a method the screen had already left.
+     */
+    private fun runStop(index: Int) {
+        if (cancelled) return
+        val stops = this.stops
+        if (index >= stops.size) {
+            project.service<NarrationService>().say(closing())
+            whenQuiet { stop() }
+            return
         }
 
-        step()
-        timer = Timer(dwellMillis) { step() }.apply { isRepeats = true; start() }
+        val method = stops[index]
+        try {
+            show(method)
+            listeners.forEach { it(Stop(index, stops.size, method)) }
+        } catch (e: Exception) {
+            thisLogger().warn("Tour stopped at stop ${index + 1} of ${stops.size}", e)
+            stop()
+            return
+        }
+
+        schedule(SETTLE_MILLIS) {
+            project.service<NarrationService>().say(spokenFor(method))
+            // Advance when the line has actually finished, not when a guessed duration has elapsed.
+            whenQuiet { schedule(dwellMillis) { runStop(index + 1) } }
+        }
+    }
+
+    /** Polls until nothing is speaking, then runs [action]. Silent machines fall straight through. */
+    private fun whenQuiet(action: () -> Unit) {
+        if (cancelled) return
+        if (!project.service<NarrationService>().isSpeaking) {
+            action()
+        } else {
+            schedule(POLL_MILLIS) { whenQuiet(action) }
+        }
+    }
+
+    private fun schedule(delayMillis: Int, action: () -> Unit) {
+        timer?.stop()
+        timer = Timer(delayMillis) { if (!cancelled) action() }.apply { isRepeats = false; start() }
     }
 
     fun stop() {
+        cancelled = true
         timer?.stop()
         timer = null
         clearDim()
@@ -161,4 +195,12 @@ class TourService(private val project: Project) {
     /** "Checking apply F X margin." then the verdict's own spoken line. */
     private fun spokenFor(method: ChangedMethod): String =
         "Checking ${Identifiers.humanise(method.displayName)}. ${method.verdict.spoken()}"
+
+    private companion object {
+        /** Lets the editor and the ledger row settle before the voice starts. */
+        const val SETTLE_MILLIS = 400
+
+        /** How often to check whether the current line has finished. */
+        const val POLL_MILLIS = 120
+    }
 }

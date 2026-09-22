@@ -47,6 +47,15 @@ class NarrationService(@Suppress("unused") private val project: Project) {
     private var current: Process? = null
 
     /**
+     * Utterances queued or speaking. The tour waits on this rather than guessing a duration: a line
+     * takes as long as it takes, and a fixed dwell meant the highlight ran ahead of the voice and
+     * every stop after the first was narrated over the wrong method.
+     */
+    private val pending = AtomicInteger(0)
+
+    val isSpeaking: Boolean get() = pending.get() > 0
+
+    /**
      * Bumped by [stop]. A queued utterance checks this against the generation it was submitted
      * under and drops itself if [stop] has since moved on - otherwise a Stop only kills the
      * utterance speaking *right now*, and everything already queued still fires afterwards
@@ -74,8 +83,12 @@ class NarrationService(@Suppress("unused") private val project: Project) {
     fun say(text: String) {
         val chosen = providers.firstOrNull { it.binary == provider } ?: return
         val submittedGeneration = generation.get()
+        pending.incrementAndGet()
         queue.submit {
-            if (generation.get() != submittedGeneration) return@submit
+            if (generation.get() != submittedGeneration) {
+                pending.decrementAndGet()
+                return@submit
+            }
             try {
                 val command = GeneralCommandLine(chosen.binary).withParameters(chosen.args(text))
                 val process = command.createProcess()
@@ -85,6 +98,7 @@ class NarrationService(@Suppress("unused") private val project: Project) {
                 thisLogger().info("Narration failed, continuing silently", e)
             } finally {
                 current = null
+                pending.decrementAndGet()
             }
         }
     }
@@ -97,5 +111,6 @@ class NarrationService(@Suppress("unused") private val project: Project) {
         generation.incrementAndGet()
         current?.destroyForcibly()
         current = null
+        pending.set(0)
     }
 }
