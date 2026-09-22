@@ -13,6 +13,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
@@ -103,17 +104,32 @@ class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
 }
 
 /** Runs the analysis over the selected change set: A1 → A2 → A3 → A4, then the impacted tests. */
-class RunAnalysisAction : AnAction(MyBundle["action.run"], null, AllIcons.Actions.Execute), DumbAware {
+class RunAnalysisAction : AnAction(
+    MyBundle["action.run"],
+    MyBundle["action.run.description"],
+    AllIcons.Actions.ListChanges,
+), DumbAware {
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         project.service<AnalysisService>().run()
+    }
+
+    override fun update(e: AnActionEvent) {
+        // Icons alone are not enough here: Run and Play used to share the same green triangle, which
+        // is unreadable on a projector and ambiguous up close. Both carry their label in the toolbar.
+        e.presentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 }
 
 /** Deliverable U6: Autopilot Review. Toggles, so a tour can always be stopped. */
-class PlayTourAction : AnAction(MyBundle["action.play"], null, AllIcons.Actions.Execute), DumbAware {
+class PlayTourAction : AnAction(
+    MyBundle["action.play"],
+    MyBundle["action.play.description"],
+    AllIcons.Actions.Execute,
+), DumbAware {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
@@ -125,7 +141,10 @@ class PlayTourAction : AnAction(MyBundle["action.play"], null, AllIcons.Actions.
         val project = e.project
         val tour = project?.service<TourService>()
         val running = tour?.isRunning == true
+        e.presentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
         e.presentation.text = if (running) MyBundle["action.play.stop"] else MyBundle["action.play"]
+        e.presentation.description =
+            if (running) MyBundle["action.play.stop.description"] else MyBundle["action.play.description"]
         e.presentation.icon = if (running) AllIcons.Actions.Suspend else AllIcons.Actions.Execute
         e.presentation.isEnabled = project != null &&
             project.service<LedgerModel>().state is LedgerState.Ready
@@ -135,10 +154,19 @@ class PlayTourAction : AnAction(MyBundle["action.play"], null, AllIcons.Actions.
 }
 
 /** Code With Me session sharing. Owned by C1. Logic lives in [shareCodeWithMeSession]. */
-class ShareSessionAction : AnAction(MyBundle["action.share"], null, AllIcons.Toolwindows.ToolWindowProfiler), DumbAware {
+class ShareSessionAction : AnAction(
+    MyBundle["action.share"],
+    MyBundle["action.share.description"],
+    AllIcons.Ide.Link,
+), DumbAware {
+
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         shareCodeWithMeSession(project, e)
+    }
+
+    override fun update(e: AnActionEvent) {
+        e.presentation.putClientProperty(ActionUtil.SHOW_TEXT_IN_TOOLBAR, true)
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
