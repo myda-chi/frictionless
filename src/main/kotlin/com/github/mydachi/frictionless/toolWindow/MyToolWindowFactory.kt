@@ -1,5 +1,6 @@
 package com.github.mydachi.frictionless.toolWindow
 
+import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
@@ -23,6 +24,11 @@ class MyToolWindowFactory : ToolWindowFactory {
         val myToolWindow = MyToolWindow(toolWindow)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
+
+        val shareAction = ActionManager.getInstance().getAction("Receipts.ShareSession")
+        if (shareAction != null) {
+            toolWindow.setTitleActions(listOf(shareAction))
+        }
     }
 
     override fun shouldBeAvailable(project: Project) = true

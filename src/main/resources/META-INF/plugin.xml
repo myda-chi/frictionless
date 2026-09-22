@@ -17,5 +17,13 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="com.github.mydachi.frictionless.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
         <postStartupActivity implementation="com.github.mydachi.frictionless.startup.MyProjectActivity" />
+        <notificationGroup id="Receipts" displayType="BALLOON"/>
     </extensions>
+
+    <actions>
+        <action id="Receipts.ShareSession"
+                class="com.github.mydachi.frictionless.collaboration.ShareReceiptsSessionAction"
+                text="Share Receipts Session"
+                description="Start a Code With Me session and copy the invite link"/>
+    </actions>
 </idea-plugin>
