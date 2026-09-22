@@ -75,9 +75,19 @@ class FrictionlessPanel(private val project: Project, parent: Disposable) : Simp
         // `tree.selected()`, which read the selection and discarded it (issue #64).
         project.service<TourService>().addListener(parent) { stop ->
             ApplicationManager.getApplication().invokeLater {
-                stop?.method?.let { method ->
-                    tree.select(method)
-                    blastRadius.show(method)
+                if (stop == null) {
+                    // Tour over: the header goes back to the totals it shows at rest.
+                    showCounts()
+                } else {
+                    tree.select(stop.method)
+                    blastRadius.show(stop.method)
+                    counts.text = MyBundle[
+                        "tour.stop",
+                        stop.index + 1,
+                        stop.total,
+                        stop.method.displayName,
+                        stop.method.verdict.display(),
+                    ]
                 }
             }
         }
@@ -103,6 +113,19 @@ class FrictionlessPanel(private val project: Project, parent: Disposable) : Simp
         return toolbar.component
     }
 
+    /** The header at rest: what the whole change set adds up to. */
+    private fun showCounts() {
+        val ready = model.state as? LedgerState.Ready ?: return
+        val byBucket = model.counts()
+        counts.text = MyBundle[
+            "ledger.counts",
+            ready.changeSet.methods.size,
+            byBucket[Bucket.PROVEN] ?: 0,
+            byBucket[Bucket.BEHAVIOUR_CHANGED] ?: 0,
+            byBucket[Bucket.UNVERIFIED] ?: 0,
+        ]
+    }
+
     private fun render(state: LedgerState) {
         when (state) {
             is LedgerState.Empty -> {
@@ -124,14 +147,7 @@ class FrictionlessPanel(private val project: Project, parent: Disposable) : Simp
             }
 
             is LedgerState.Ready -> {
-                val byBucket = model.counts()
-                counts.text = MyBundle[
-                    "ledger.counts",
-                    state.changeSet.methods.size,
-                    byBucket[Bucket.PROVEN] ?: 0,
-                    byBucket[Bucket.BEHAVIOUR_CHANGED] ?: 0,
-                    byBucket[Bucket.UNVERIFIED] ?: 0,
-                ]
+                showCounts()
                 tree.show(state.changeSet)
                 blastRadius.show(null)
                 cards.show(content, LEDGER)
