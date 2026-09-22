@@ -28,6 +28,15 @@
         <notificationGroup id="Frictionless" displayType="BALLOON"/>
     </extensions>
 
+    <!-- Declaring K2 support is what makes the plugin load at all once it depends on the Kotlin
+         plugin: K2 is the default analysis mode, and the Kotlin plugin refuses any dependant that
+         has not said which modes it supports ("incompatible with Kotlin in K2 mode" at startup,
+         with the plugin silently absent). We only read Kotlin PSI (KtNamedFunction) and light
+         methods, never the K1 analysis API, so both modes are genuinely fine. -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true" />
+    </extensions>
+
     <actions>
         <!-- No default keyboard shortcuts: IntelliJ's shortcut map is dense and personally customised. -->
         <group id="Frictionless.Toolbar">

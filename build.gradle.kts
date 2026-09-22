@@ -34,6 +34,11 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-slf4j")
+        // Pulled transitively through Ktor's reactive plumbing rather than by Koog directly, and
+        // flagged by verifyPluginProjectConfiguration. Nothing here uses reactive streams.
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-reactive")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk9")
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
     }
 
     testImplementation("junit:junit:4.13.2")
