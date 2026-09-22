@@ -1,9 +1,12 @@
 package com.github.mydachi.frictionless.toolwindow
 
 import com.github.mydachi.frictionless.MyBundle
+import com.github.mydachi.frictionless.editor.VerdictMarkup
 import com.github.mydachi.frictionless.model.Bucket
 import com.github.mydachi.frictionless.model.LedgerModel
 import com.github.mydachi.frictionless.model.LedgerState
+import com.github.mydachi.frictionless.navigation.Navigator
+import com.github.mydachi.frictionless.tour.TourService
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
@@ -14,25 +17,33 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.util.Disposer
+import com.intellij.ui.JBColor
+import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
-import javax.swing.BoxLayout
+import java.awt.CardLayout
 import javax.swing.JComponent
 
 /**
- * Deliverable S1: toolbar plus the surface the ledger paints on.
+ * Deliverables U1 and U2: the toolbar, the counts header, the ledger and the blast-radius detail.
  *
- * The rows themselves are U2's job — this owns the frame, the counts header and the three states a
- * developer can actually hit (nothing run yet, running, failed).
+ * Three states a developer can actually hit are rendered honestly — nothing analysed yet, running,
+ * and failed. There is no state that paints invented rows.
  */
-class FrictionlessPanel(project: Project, parent: Disposable) : SimpleToolWindowPanel(true, true) {
+class FrictionlessPanel(private val project: Project, parent: Disposable) : SimpleToolWindowPanel(true, true) {
 
     private val model = project.service<LedgerModel>()
     private val counts = JBLabel()
-    private val body = JBPanel<JBPanel<*>>().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
+    private val tree = LedgerTree { method -> Navigator.open(project, method) }
+    private val blastRadius = BlastRadiusPanel(project)
+    private val message = JBLabel().apply { foreground = UIUtil.getInactiveTextColor() }
+
+    private val cards = CardLayout()
+    private val content = JBPanel<JBPanel<*>>(cards)
 
     private val listener: (LedgerState) -> Unit = { state ->
         ApplicationManager.getApplication().invokeLater { render(state) }
@@ -41,15 +52,44 @@ class FrictionlessPanel(project: Project, parent: Disposable) : SimpleToolWindow
     init {
         toolbar = buildToolbar()
 
-        val content = JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            border = JBUI.Borders.empty(8)
-            add(counts.apply { border = JBUI.Borders.emptyBottom(8) }, BorderLayout.NORTH)
-            add(body, BorderLayout.CENTER)
+        val ledger = OnePixelSplitter(true, 0.6f).apply {
+            firstComponent = JBScrollPane(tree)
+            secondComponent = blastRadius
         }
-        setContent(content)
+        content.add(JBPanel<JBPanel<*>>(BorderLayout()).apply {
+            border = JBUI.Borders.empty(12)
+            add(message, BorderLayout.NORTH)
+        }, MESSAGE)
+        content.add(ledger, LEDGER)
+
+        setContent(JBPanel<JBPanel<*>>(BorderLayout()).apply {
+            add(header(), BorderLayout.NORTH)
+            add(content, BorderLayout.CENTER)
+        })
+
+        tree.addTreeSelectionListener { blastRadius.show(tree.selected()) }
 
         model.addListener(listener)
-        Disposer.register(parent) { model.removeListener(listener) }
+        project.service<TourService>().addListener { stop ->
+            ApplicationManager.getApplication().invokeLater {
+                stop?.method?.let { method ->
+                    tree.selected()
+                    blastRadius.show(method)
+                }
+            }
+        }
+        Disposer.register(parent) {
+            model.removeListener(listener)
+            project.service<VerdictMarkup>().clear()
+        }
+    }
+
+    private fun header() = JBPanel<JBPanel<*>>(BorderLayout()).apply {
+        border = JBUI.Borders.compound(
+            JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0),
+            JBUI.Borders.empty(6, 10),
+        )
+        add(counts.apply { font = font.deriveFont(font.size2D + 1f) }, BorderLayout.WEST)
     }
 
     private fun buildToolbar(): JComponent {
@@ -61,21 +101,23 @@ class FrictionlessPanel(project: Project, parent: Disposable) : SimpleToolWindow
     }
 
     private fun render(state: LedgerState) {
-        body.removeAll()
         when (state) {
             is LedgerState.Empty -> {
                 counts.text = MyBundle["ledger.counts.none"]
-                body.add(message(MyBundle["ledger.empty"]))
+                message.text = MyBundle["ledger.empty"]
+                cards.show(content, MESSAGE)
             }
 
             is LedgerState.Running -> {
                 counts.text = MyBundle["ledger.counts.none"]
-                body.add(message(state.what))
+                message.text = state.what
+                cards.show(content, MESSAGE)
             }
 
             is LedgerState.Failed -> {
                 counts.text = MyBundle["ledger.counts.none"]
-                body.add(message(MyBundle["ledger.failed", state.message]))
+                message.text = MyBundle["ledger.failed", state.message]
+                cards.show(content, MESSAGE)
             }
 
             is LedgerState.Ready -> {
@@ -87,15 +129,16 @@ class FrictionlessPanel(project: Project, parent: Disposable) : SimpleToolWindow
                     byBucket[Bucket.BEHAVIOUR_CHANGED] ?: 0,
                     byBucket[Bucket.UNVERIFIED] ?: 0,
                 ]
-                // Rows are U2. Until then, one line per method so the pipeline is visible end to end.
-                state.changeSet.methods.forEach { method ->
-                    body.add(JBLabel("${method.displayName}  —  ${method.verdict.display()}"))
-                }
+                tree.show(state.changeSet)
+                blastRadius.show(null)
+                cards.show(content, LEDGER)
+                project.service<VerdictMarkup>().refresh()
             }
         }
-        body.revalidate()
-        body.repaint()
     }
 
-    private fun message(text: String) = JBLabel(text).apply { foreground = UIUtil.getInactiveTextColor() }
+    private companion object {
+        const val MESSAGE = "message"
+        const val LEDGER = "ledger"
+    }
 }

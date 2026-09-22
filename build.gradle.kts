@@ -32,6 +32,7 @@ dependencies {
         } else {
             intellijIdea(providers.gradleProperty("platformVersion"))
         }
+        bundledPlugin("Git4Idea")
         testFramework(TestFrameworkType.Platform)
 
         // E1 builds and launches a JUnitConfiguration, which lives in the bundled Java and JUnit
