@@ -56,9 +56,22 @@ class BranchChangeSetProvider(
         fun repositoryFor(project: Project): GitRepository? =
             GitRepositoryManager.getInstance(project).repositories.firstOrNull()
 
-        /** Local branch names, for the picker. */
-        fun localBranches(project: Project): List<String> =
-            repositoryFor(project)?.branches?.localBranches?.map { it.name }?.sorted().orEmpty()
+        /**
+         * Every branch worth comparing against: local first, then remote.
+         *
+         * Remote branches matter more than local ones here. The branch you want to review is
+         * usually one you have *not* checked out — a teammate's PR exists as `origin/their-branch`
+         * and nothing else. Listing only local branches left a freshly cloned repository with one
+         * branch and nothing to offer, which is exactly the case branch mode is for.
+         *
+         * `origin/x` is a perfectly good ref for a diff, so nothing downstream changes.
+         */
+        fun branches(project: Project): List<String> {
+            val repository = repositoryFor(project) ?: return emptyList()
+            val local = repository.branches.localBranches.map { it.name }.sorted()
+            val remote = repository.branches.remoteBranches.map { it.name }.sorted()
+            return local + remote
+        }
 
         /** What the current checkout is called, which is always the head side of the comparison. */
         fun currentBranch(project: Project): String? =
@@ -77,8 +90,12 @@ class BranchChangeSetProvider(
                 ?.let { return it }
 
             val locals = repository.branches.localBranches.map { it.name }
-            return listOf("main", "master").firstOrNull { it in locals && it != current }
-                ?: locals.firstOrNull { it != current }
+            listOf("main", "master").firstOrNull { it in locals && it != current }?.let { return it }
+
+            val remotes = repository.branches.remoteBranches.map { it.name }
+            listOf("origin/main", "origin/master").firstOrNull { it in remotes }?.let { return it }
+
+            return locals.firstOrNull { it != current } ?: remotes.firstOrNull()
         }
     }
 }

@@ -76,7 +76,9 @@ class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
             return
         }
 
-        val candidates = BranchChangeSetProvider.localBranches(project).filter { it != head }
+        // The current branch is the head of every comparison, so it is never a base — but its
+        // remote counterpart is (comparing a checkout against origin/<same> is a normal review).
+        val candidates = BranchChangeSetProvider.branches(project).filter { it != head }
         if (candidates.isEmpty()) {
             model.update(LedgerState.Failed(MyBundle["source.noOtherBranch"]))
             return
