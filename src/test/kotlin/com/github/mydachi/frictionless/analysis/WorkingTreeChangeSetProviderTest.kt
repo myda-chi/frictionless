@@ -55,7 +55,8 @@ class WorkingTreeChangeSetProviderTest : BasePlatformTestCase() {
         assertEquals(file, changed.file)
         assertEquals(FileStatus.MODIFIED, changed.status)
         assertEquals("class Before\n", changed.baseRevision!!.content)
-        assertTrue("expected a path ending in Base.kt, got ${changed.path}", changed.path.endsWith("Base.kt"))
+        // Outside the project, so displayPath leaves it absolute rather than truncating it.
+        assertEquals(file.path, changed.path)
     }
 
     fun testDeletionKeepsTheBaseRevisionAndDropsTheWorkingTreeFile() {
