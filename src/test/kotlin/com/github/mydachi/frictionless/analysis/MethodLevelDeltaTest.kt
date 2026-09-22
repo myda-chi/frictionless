@@ -4,7 +4,6 @@ import com.github.mydachi.frictionless.model.Bucket
 import com.github.mydachi.frictionless.model.ChangeSource
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiManager
-import com.intellij.psi.PsiMethod
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 /**
@@ -98,8 +97,10 @@ class MethodLevelDeltaTest : BasePlatformTestCase() {
             .filter { it.change == MethodChange.ADDED }
 
         // The signature, not the name: both overloads are named pick and they must stay distinct.
+        // The owner is part of the signature (issue #58), so two same-named methods in different
+        // classes in one file cannot collide and silently drop one.
         assertEquals(
-            setOf("pick(String)", "pick(int, int)"),
+            setOf("Over.pick(String)", "Over.pick(int, int)"),
             added.map { it.method.id.substringAfterLast('#') }.toSet(),
         )
     }
@@ -172,18 +173,49 @@ class MethodLevelDeltaTest : BasePlatformTestCase() {
 
     fun testSignatureUsesParameterTypesNotParameterNames() {
         val psi = javaFile("package demo;\npublic class S {\n    public void go(int a, String b) { }\n}\n")
-        val method: PsiMethod = MethodLevelDelta.methodsOf(PsiManager.getInstance(project).findFile(psi)!!).values.single()
+        val method = MethodLevelDelta.methodsOf(PsiManager.getInstance(project).findFile(psi)!!).values.single()
 
         val signature = MethodLevelDelta.signature(method)
 
         // Parameter types in order, and never the parameter names — that is what keeps a rename from
         // reading as a delete plus an add. Asserted structurally rather than against a canonical text,
         // which varies with whether the fixture has an SDK configured.
-        assertTrue(signature, signature.startsWith("go("))
+        assertTrue(signature, signature.startsWith("S.go("))
         assertTrue(signature, signature.contains("int"))
         assertTrue(signature, signature.contains("String"))
         assertFalse("parameter names leaked into the signature: $signature", signature.contains(" a") || signature.contains(" b"))
     }
+
+    fun testKotlinFunctionsAreComparedToo() {
+        // Issue #56: the analyser collected PsiMethod only, so a Kotlin file contributed nothing and
+        // the plugin could not be run on itself.
+        val head = kotlinFile(
+            "package demo\n\nclass Fx {\n    fun applyMargin(amount: Int): Int = amount * 2\n" +
+                "    fun untouched(): Int = 1\n}\n",
+        )
+        val base = "package demo\n\nclass Fx {\n    fun applyMargin(amount: Int): Int = amount\n" +
+            "    fun untouched(): Int = 1\n}\n"
+
+        val deltas = MethodLevelDelta.delta(project, changed(head, base))
+
+        assertEquals(1, deltas.size)
+        assertEquals(MethodChange.MODIFIED, deltas.single().change)
+        assertEquals("Fx.applyMargin()", deltas.single().method.displayName)
+    }
+
+    fun testKotlinTopLevelFunctionHasNoOwnerInItsName() {
+        val head = kotlinFile("package demo\n\nfun helper(): Int = 2\n")
+        val base = "package demo\n\nfun helper(): Int = 1\n"
+
+        val deltas = MethodLevelDelta.delta(project, changed(head, base))
+
+        assertEquals("helper()", deltas.single().method.displayName)
+    }
+
+    private var kotlinFileCounter = 0
+
+    private fun kotlinFile(text: String): VirtualFile =
+        myFixture.addFileToProject("src/main/kotlin/demo/Fixture${kotlinFileCounter++}.kt", text).virtualFile
 
     private fun javaFile(text: String): VirtualFile =
         myFixture.addFileToProject("src/main/java/demo/${nameOf(text)}", text).virtualFile

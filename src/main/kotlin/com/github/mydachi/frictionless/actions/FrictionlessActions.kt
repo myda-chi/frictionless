@@ -1,6 +1,7 @@
 package com.github.mydachi.frictionless.actions
 
 import com.github.mydachi.frictionless.MyBundle
+import com.github.mydachi.frictionless.analysis.AnalysisService
 import com.github.mydachi.frictionless.model.ChangeSource
 import com.github.mydachi.frictionless.model.LedgerModel
 import com.github.mydachi.frictionless.model.LedgerState
@@ -40,7 +41,7 @@ class SourcePickerAction : ComboBoxAction(), DumbAware {
         val project = e.project ?: return
         e.presentation.text = when (val source = project.service<LedgerModel>().source) {
             is ChangeSource.WorkingTree -> MyBundle["source.workingTree"]
-            is ChangeSource.Branch -> MyBundle["source.branch", source.head, source.base]
+            is ChangeSource.Branch -> MyBundle["source.branch", source.base, source.head]
         }
     }
 
@@ -92,11 +93,11 @@ class SelectBranchAction : AnAction(MyBundle["source.pickBranch"]), DumbAware {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 }
 
-/** Run the analysis over the selected change set. Owned by A1–A4 (#15). */
+/** Runs the analysis over the selected change set: A1 → A2 → A3 → A4, then the impacted tests. */
 class RunAnalysisAction : AnAction(MyBundle["action.run"], null, AllIcons.Actions.Execute), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        notYet(project, MyBundle["action.run"], "#15")
+        project.service<AnalysisService>().run()
     }
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
