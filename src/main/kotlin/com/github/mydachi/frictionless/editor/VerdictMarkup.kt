@@ -135,9 +135,10 @@ class VerdictMarkup(private val project: Project) {
 
     private class VerdictGutterIcon(private val method: ChangedMethod) : GutterIconRenderer() {
         override fun getIcon(): Icon = when (method.verdict.bucket) {
+            // Red is Unverified - same reasoning as the ledger's icons.
             Bucket.PROVEN -> AllIcons.RunConfigurations.TestPassed
-            Bucket.BEHAVIOUR_CHANGED -> AllIcons.RunConfigurations.TestFailed
-            Bucket.UNVERIFIED -> AllIcons.General.Warning
+            Bucket.BEHAVIOUR_CHANGED -> AllIcons.General.Warning
+            Bucket.UNVERIFIED -> AllIcons.General.Error
         }
 
         override fun getTooltipText(): String = "${method.displayName} — ${method.verdict.display()}"
