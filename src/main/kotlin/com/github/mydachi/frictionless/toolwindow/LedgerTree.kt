@@ -69,7 +69,22 @@ class LedgerTree(private val onActivate: (ChangedMethod) -> Unit) : Tree(Default
             root.add(node)
         }
         model = DefaultTreeModel(root)
-        for (row in 0 until rowCount) expandRow(row)
+        expandEverything()
+    }
+
+    /**
+     * Expands every bucket, re-reading [rowCount] as it goes.
+     *
+     * `for (row in 0 until rowCount)` evaluates the bound once, so expanding the first bucket pushed
+     * the others down and the loop then "expanded" that bucket's own methods instead. Only the first
+     * group ever opened: the ledger looked like three coloured circles with nothing under them.
+     */
+    private fun expandEverything() {
+        var row = 0
+        while (row < rowCount) {
+            expandRow(row)
+            row++
+        }
     }
 
     data class BucketNode(val bucket: Bucket, val count: Int)
@@ -94,10 +109,18 @@ class LedgerTree(private val onActivate: (ChangedMethod) -> Unit) : Tree(Default
             }
         }
 
+        /**
+         * Red is **Unverified**, not behaviour-changed.
+         *
+         * A failing test is a problem you can already see; nothing reaching the code at all is the
+         * invisible one, and it is what this tool exists to surface. Everything we say about the
+         * product - the spec, the demo script, "it stops on the red one" - calls Unverified red, so
+         * the screen has to agree or the audience looks at the wrong row.
+         */
         private fun iconFor(bucket: Bucket) = when (bucket) {
             Bucket.PROVEN -> AllIcons.RunConfigurations.TestPassed
-            Bucket.BEHAVIOUR_CHANGED -> AllIcons.RunConfigurations.TestFailed
-            Bucket.UNVERIFIED -> AllIcons.General.Warning
+            Bucket.BEHAVIOUR_CHANGED -> AllIcons.General.Warning
+            Bucket.UNVERIFIED -> AllIcons.General.Error
         }
 
         private fun label(bucket: Bucket) = when (bucket) {

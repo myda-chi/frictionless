@@ -18,6 +18,18 @@ class LedgerTreeTest {
     private fun onEdt(block: () -> Unit) = SwingUtilities.invokeAndWait(block)
 
     @Test
+    fun `every bucket is expanded, so no method is hidden`() = onEdt {
+        val tree = LedgerTree { }
+
+        tree.show(FrictionlessFixtures.changeSet())
+
+        // Three buckets and the three methods under them. The expand loop used to read rowCount once,
+        // so expanding the first bucket pushed the rest down and only that one ever opened - the
+        // ledger showed three coloured circles with nothing beneath them.
+        assertEquals(6, tree.rowCount)
+    }
+
+    @Test
     fun `selects the row for a method the tour has moved to`() = onEdt {
         val tree = LedgerTree { }
         tree.show(FrictionlessFixtures.changeSet())
