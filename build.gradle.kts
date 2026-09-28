@@ -59,7 +59,7 @@ dependencies {
     // kotlinx-coroutines (it adds runBlockingWithParallelismCompensation, which the service
     // container calls); letting Koog drag in the vanilla artifact shadows that fork and every
     // platform test dies with NoSuchMethodError. The plugin gets coroutines from the platform.
-    implementation("ai.koog:koog-agents:1.2.0") {
+    implementation("ai.koog:koog-agents:1.3.0") {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
